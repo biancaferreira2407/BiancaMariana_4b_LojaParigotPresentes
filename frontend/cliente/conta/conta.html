@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Minha conta na Parigot Presentes.">
+    <title>Minha conta | Parigot Presentes</title>
+    <link rel="stylesheet" href="conta.css">
+</head>
+<body>
+    <header class="cabecalho-conta">
+        <a class="identidade-loja" href="../dashboard/dashboard.html" aria-label="Voltar à loja">
+            <span>Parigot <strong>Presentes</strong></span>
+        </a>
+        <a class="link-voltar" href="../dashboard/dashboard.html">Voltar para a loja</a>
+    </header>
+
+    <main class="pagina-conta">
+        <section class="cartao-conta" aria-labelledby="tituloConta">
+            <div class="topo-conta">
+                <div class="icone-perfil" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4"></circle>
+                        <path d="M5 21v-2a7 7 0 0 1 14 0v2"></path>
+                    </svg>
+                </div>
+                <p class="sobretitulo">ÁREA DO CLIENTE</p>
+                <h1 id="tituloConta">Minha conta</h1>
+                <p class="descricao-conta">Consulte e atualize seus dados pessoais.</p>
+            </div>
+
+            <form id="formConta" class="form-conta">
+                <div class="grade-dados">
+                    <div class="campo campo-largo">
+                        <label for="nome">Nome completo</label>
+                        <input id="nome" name="nome_pessoa" type="text" autocomplete="name" disabled>
+                    </div>
+                    <div class="campo">
+                        <label for="cpf">CPF</label>
+                        <input id="cpf" name="cpf_pessoa" type="text" disabled>
+                        <small>O CPF não pode ser alterado.</small>
+                    </div>
+                    <div class="campo">
+                        <label for="nascimento">Data de nascimento</label>
+                        <input id="nascimento" name="data_nascimento_pessoa" type="date" autocomplete="bday" disabled>
+                    </div>
+                    <div class="campo campo-largo">
+                        <label for="email">E-mail</label>
+                        <input id="email" name="email_pessoa" type="email" autocomplete="email" disabled>
+                    </div>
+                    <div class="campo campo-largo">
+                        <label for="endereco">Endereço</label>
+                        <input id="endereco" name="endereco_pessoa" type="text" autocomplete="street-address" disabled>
+                    </div>
+                </div>
+
+                <p id="mensagemConta" class="mensagem-conta" role="status" aria-live="polite"></p>
+
+                <div class="acoes-conta">
+                    <button type="button" class="botao-principal" id="botaoAlterar">Alterar dados</button>
+                    <button type="button" class="botao-secundario" id="botaoCancelar" hidden>Cancelar</button>
+                    <button type="submit" class="botao-principal" id="botaoConfirmar" hidden>Confirmar alterações</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <div class="modal-senha" id="modalSenha" hidden>
+        <div class="fundo-modal" data-fechar-senha></div>
+        <section class="janela-senha" role="dialog" aria-modal="true" aria-labelledby="tituloSenha">
+            <button type="button" class="fechar-modal" aria-label="Fechar" data-fechar-senha>&times;</button>
+            <div class="icone-cadeado" aria-hidden="true">&#128274;</div>
+            <h2 id="tituloSenha">Confirme sua identidade</h2>
+            <p>Digite sua senha atual para confirmar as alterações da conta.</p>
+            <label for="senhaAtual">Senha atual</label>
+            <input id="senhaAtual" type="password" autocomplete="current-password" placeholder="Digite sua senha">
+            <p id="mensagemSenha" class="mensagem-conta" role="status" aria-live="polite"></p>
+            <div class="acoes-modal">
+                <button type="button" class="botao-secundario" id="botaoVoltarSenha">Voltar</button>
+                <button type="button" class="botao-principal" id="botaoValidarSenha">Confirmar</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="conta.js"></script>
+</body>
+</html>

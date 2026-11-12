@@ -1,0 +1,105 @@
+const { query } = require('../database');
+const jwt = require('jsonwebtoken');
+
+exports.login = async (req, res) => {
+    try {
+        const { email_pessoa, senha_pessoa, perfil } = req.body;
+
+        if (!email_pessoa || !senha_pessoa) {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem: 'Preencha o e-mail e a senha.'
+            });
+        }
+
+        const resultado = await query(
+            `SELECT
+                p.cpf_pessoa,
+                p.nome_pessoa,
+                p.email_pessoa,
+                p.senha_pessoa,
+                (c.pessoa_cpf_pessoa IS NOT NULL) AS eh_cliente,
+                (f.pessoa_cpf_pessoa IS NOT NULL) AS eh_funcionario
+             FROM pessoa p
+             LEFT JOIN cliente c
+                ON c.pessoa_cpf_pessoa = p.cpf_pessoa
+             LEFT JOIN funcionario f
+                ON f.pessoa_cpf_pessoa = p.cpf_pessoa
+             WHERE p.email_pessoa = $1`,
+            [email_pessoa]
+        );
+
+        if (
+            resultado.rows.length === 0 ||
+            resultado.rows[0].senha_pessoa !== senha_pessoa
+        ) {
+            return res.status(401).json({
+                sucesso: false,
+                mensagem: 'E-mail ou senha incorretos.'
+            });
+        }
+
+        const pessoa = resultado.rows[0];
+
+        const perfis = [];
+
+        if (pessoa.eh_funcionario) perfis.push('admin');
+        if (pessoa.eh_cliente) perfis.push('cliente');
+
+        if (perfis.length === 0) {
+            return res.status(403).json({
+                sucesso: false,
+                mensagem: 'Usuário sem perfil de acesso.'
+            });
+        }
+
+        // Se estiver nos dois cadastros, solicita a escolha.
+        if (perfis.length === 2 && !perfil) {
+            return res.json({
+                sucesso: true,
+                escolherPerfil: true,
+                perfis: perfis
+            });
+        }
+
+        // Se estiver em apenas um cadastro, seleciona automaticamente.
+        const perfilEscolhido = perfil || perfis[0];
+
+        if (!perfis.includes(perfilEscolhido)) {
+            return res.status(403).json({
+                sucesso: false,
+                mensagem: 'Perfil de acesso inválido.'
+            });
+        }
+
+        const token = jwt.sign(
+            {
+                cpf: pessoa.cpf_pessoa,
+                email: pessoa.email_pessoa,
+                perfil: perfilEscolhido
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '2h' }
+        );
+
+        res.json({
+            sucesso: true,
+            mensagem: 'Login realizado com sucesso!',
+            token: token,
+            perfil: perfilEscolhido,
+            cliente: {
+                cpf_pessoa: pessoa.cpf_pessoa,
+                nome_pessoa: pessoa.nome_pessoa,
+                email_pessoa: pessoa.email_pessoa
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro no login:', error);
+
+        res.status(500).json({
+            sucesso: false,
+            mensagem: 'Erro interno do servidor.'
+        });
+    }
+};

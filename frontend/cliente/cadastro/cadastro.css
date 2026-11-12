@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+    --rosa: #CC6060;
+    --rosa-escuro: #B94F58;
+    --fundo: #FFFBF6;
+    --marrom: #4D3328;
+    --texto: #734C37;
+    --linha: #F0D5C9;
+    --branco: #FFFFFF;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    padding: 30px 18px;
+    display: grid;
+    place-items: center;
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    color: var(--texto);
+    background:
+        radial-gradient(circle at 12% 15%, rgba(242, 191, 170, .35), transparent 28%),
+        radial-gradient(circle at 88% 85%, rgba(204, 96, 96, .12), transparent 30%),
+        var(--fundo);
+}
+
+.pagina-cadastro { width: min(760px, 100%); }
+
+.cartao-cadastro {
+    padding: 38px 46px;
+    border: 1px solid var(--linha);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, .97);
+    box-shadow: 0 16px 45px rgba(77, 51, 40, .10);
+}
+
+.marca {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    margin-bottom: 27px;
+    color: var(--marrom);
+    text-decoration: none;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.marca strong { color: var(--rosa); font-weight: 600; }
+
+.marca-icone {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    color: white;
+    background: var(--rosa);
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.introducao { margin-bottom: 25px; text-align: center; }
+.chamada {
+    margin: 0 0 6px;
+    color: var(--rosa-escuro);
+    font-size: .76rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.introducao h1 { margin: 0; color: var(--marrom); font-size: 1.7rem; }
+.descricao { margin: 7px 0 0; color: #987D70; font-size: .88rem; }
+
+.formulario-cadastro {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 17px 20px;
+}
+
+.campo { min-width: 0; display: grid; gap: 7px; }
+.campo-completo { grid-column: 1 / -1; }
+.campo label { color: var(--marrom); font-size: .86rem; font-weight: 600; }
+
+.campo input {
+    width: 100%;
+    height: 47px;
+    padding: 0 13px;
+    border: 1px solid var(--linha);
+    border-radius: 10px;
+    outline: none;
+    color: var(--marrom);
+    background: #FFFEFC;
+    font: inherit;
+    font-size: .86rem;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.campo input::placeholder { color: #B49B8E; }
+.campo input:focus { border-color: var(--rosa); box-shadow: 0 0 0 3px rgba(204, 96, 96, .12); }
+.campo input[type="date"] { color: var(--texto); }
+
+.campo-senha { position: relative; display: flex; align-items: center; }
+.campo-senha input { padding-right: 48px; }
+.alternar-senha {
+    position: absolute;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    padding: 5px;
+    border: 0;
+    color: #A98C7E;
+    background: transparent;
+    cursor: pointer;
+}
+.alternar-senha:hover { color: var(--rosa-escuro); }
+.alternar-senha svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.botao-confirmar {
+    grid-column: 1 / -1;
+    min-height: 49px;
+    margin-top: 5px;
+    border: 0;
+    border-radius: 10px;
+    color: white;
+    background: var(--rosa);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, transform .2s;
+}
+.botao-confirmar:hover { background: var(--rosa-escuro); transform: translateY(-1px); }
+.botao-confirmar:disabled { opacity: .65; cursor: wait; transform: none; }
+
+.mensagem-cadastro {
+    grid-column: 1 / -1;
+    min-height: 20px;
+    margin: -8px 0 0;
+    color: var(--rosa-escuro);
+    font-size: .82rem;
+    text-align: center;
+}
+.mensagem-cadastro.sucesso { color: #39734B; }
+.link-login { margin: 22px 0 0; text-align: center; font-size: .84rem; }
+.link-login a { color: var(--rosa-escuro); font-weight: 600; text-decoration: none; }
+.link-login a:hover { text-decoration: underline; }
+
+@media (max-width: 560px) {
+    .cartao-cadastro { padding: 30px 22px; border-radius: 18px; }
+    .formulario-cadastro { grid-template-columns: 1fr; gap: 15px; }
+    .campo-completo, .botao-confirmar, .mensagem-cadastro { grid-column: 1; }
+    .introducao h1 { font-size: 1.45rem; }
+}

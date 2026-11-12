@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dashboard da Parigot Presentes.">
+    <title>Parigot Presentes | Loja</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+
+<body>
+    <header class="cabecalho-loja">
+        <div class="linha-superior">
+            <a class="identidade-loja" href="dashboard.html" aria-label="Página inicial da Parigot Presentes">
+                <img src="../../../imagens/logo-parigot.png" alt="Logo da Parigot Presentes">
+                <span>Parigot <strong>Presentes</strong></span>
+            </a>
+
+            <form class="pesquisa" id="formPesquisa" role="search">
+                <label class="visualmente-oculto" for="buscarProduto">Buscar produtos</label>
+                <input type="search" id="buscarProduto" name="busca" placeholder="Buscar ou pesquisar produtos..."
+                    autocomplete="off">
+                <button type="submit" aria-label="Pesquisar">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="10.8" cy="10.8" r="6.8"></circle>
+                        <path d="m16 16 5 5"></path>
+                    </svg>
+                </button>
+            </form>
+
+            <button class="botao-carrinho" type="button" aria-label="Carrinho de compras">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 4h2l2.2 11.1a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 1.9-1.4L22 8H6"></path>
+                    <circle cx="10" cy="20" r="1"></circle>
+                    <circle cx="18" cy="20" r="1"></circle>
+                </svg>
+                <span>Carrinho</span>
+            </button>
+            <a href="../login/login.html" class="botao-login" id="botaoLogin">
+                Login
+            </a>
+
+            <a href="../conta/conta.html" id="botaoConta" hidden aria-label="Minha conta" title="Minha conta">
+
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+                </svg>
+
+            </a>
+        </div>
+
+        <nav class="navegacao" aria-label="Navegação principal">
+            <div class="menu-categorias">
+                <button class="botao-navegacao" id="btnCategorias" type="button" aria-expanded="false"
+                    aria-controls="listaCategorias">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                        <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                        <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                        <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+                    </svg>
+                    <span>Categorias</span>
+                    <svg class="seta" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </button>
+                <div class="lista-categorias" id="listaCategorias" hidden>
+                    <p class="titulo-lista">Explore por categoria</p>
+                    <div id="opcoesCategorias" class="opcoes-categorias">
+                        <span class="estado-categorias">Carregando categorias...</span>
+                    </div>
+                </div>
+            </div>
+
+            <button class="botao-navegacao" id="botaoPedidos" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 4h16v16H4z"></path>
+                    <path d="M8 8h8M8 12h8M8 16h5"></path>
+                </svg>
+                <span>Pedidos realizados</span>
+            </button>
+
+            <button class="botao-navegacao" id="botaoDevolucoes" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h16v13H4z"></path>
+                    <path d="M8 7V4h8v3M8 12h8M8 16h5"></path>
+                    <path d="m16 16 2 2 3-4"></path>
+                </svg>
+                <span>Devoluções</span>
+            </button>
+
+            <div class="menu-contato">
+                <button class="botao-navegacao" id="btnContato" type="button" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 5h16v12H9l-5 3z"></path>
+                        <path d="M8 9h8M8 13h5"></path>
+                    </svg>
+                    <span>Contato</span>
+                </button>
+
+                <div class="painel-contato" id="painelContato" hidden>
+                    <strong>Fale conosco</strong>
+
+                    <a href="tel:35254762">
+                        Telefone: 3525-4762
+                    </a>
+
+                    <a href="https://wa.me/5544997040592" target="_blank">
+                        WhatsApp: (44) 99704-0592
+                    </a>
+
+                    <a href="mailto:biancamariana2009@gmail.com">
+                        E-mail: biancamariana2009@gmail.com
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="conteudo-dashboard">
+        <section class="secao-produtos" aria-labelledby="tituloProdutos">
+            <div class="cabecalho-produtos">
+                <div>
+                    <p class="chamada-produtos">Escolha o seu próximo presente</p>
+                    <h2 id="tituloProdutos">Nossos produtos</h2>
+                </div>
+                <span id="quantidadeProdutos" class="quantidade-produtos"></span>
+            </div>
+            <div id="gradeProdutos" class="grade-produtos" aria-live="polite">
+                <p class="estado-produtos">Carregando produtos...</p>
+            </div>
+        </section>
+
+        <section id="secaoHistorico" hidden>
+            <h2 id="tituloHistorico"></h2>
+
+            <div id="listaHistorico">
+                <!-- Os pedidos ou as devoluções aparecerão aqui -->
+            </div>
+
+            <button type="button" id="botaoVoltarProdutos">
+                Voltar para os produtos
+            </button>
+        </section>
+    </main>
+
+    <div class="modal-produto" id="modalProduto" hidden>
+        <div class="fundo-modal" data-fechar-modal></div>
+        <section class="janela-produto" role="dialog" aria-modal="true" aria-labelledby="modalNomeProduto">
+            <button class="fechar-modal" type="button" aria-label="Fechar detalhes" data-fechar-modal>&times;</button>
+            <div id="conteudoModalProduto"></div>
+        </section>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+
+</html>
