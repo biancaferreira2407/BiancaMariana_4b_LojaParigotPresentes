@@ -1,0 +1,92 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperar senha | Parigot Presentes</title>
+
+    <link rel="stylesheet" href="esqueciSenha.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <main class="container">
+        <section class="card">
+
+            <a href="../login/login.html" class="voltar">← Voltar para o login</a>
+
+            <div class="icone">
+                <span>🔒</span>
+            </div>
+
+            <h1>Esqueceu sua senha?</h1>
+
+            <p class="descricao">
+                Não se preocupe! Vamos ajudar você a recuperar o acesso à sua conta.
+            </p>
+
+            <div id="mensagem" class="mensagem"></div>
+
+            <!-- ETAPA 1: E-MAIL -->
+            <form id="formEmail" class="etapa">
+                <label for="email">E-mail cadastrado</label>
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="Digite seu e-mail"
+                    required
+                >
+
+                <button type="submit">Enviar código</button>
+            </form>
+
+            <!-- ETAPA 2: CÓDIGO -->
+            <form id="formCodigo" class="etapa escondido">
+                <label for="codigo">Código de recuperação</label>
+                <input
+                    type="text"
+                    id="codigo"
+                    placeholder="Digite o código de 6 dígitos"
+                    maxlength="6"
+                    inputmode="numeric"
+                    pattern="[0-9]{6}"
+                    required
+                >
+
+                <button type="submit">Verificar código</button>
+
+                <button type="button" class="botao-secundario" id="voltarEmail">
+                    Alterar e-mail
+                </button>
+            </form>
+
+            <!-- ETAPA 3: NOVA SENHA -->
+            <form id="formSenha" class="etapa escondido">
+                <label for="novaSenha">Nova senha</label>
+                <input
+                    type="password"
+                    id="novaSenha"
+                    placeholder="Digite sua nova senha"
+                    required
+                >
+
+                <label for="confirmarSenha">Confirmar nova senha</label>
+                <input
+                    type="password"
+                    id="confirmarSenha"
+                    placeholder="Digite novamente sua senha"
+                    required
+                >
+
+                <button type="submit">Alterar senha</button>
+            </form>
+
+            <p class="rodape">Parigot Presentes</p>
+
+        </section>
+    </main>
+
+    <script src="esqueciSenha.js"></script>
+</body>
+</html>

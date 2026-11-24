@@ -1,12 +1,6 @@
 //import { query } from '../database.js';
 const { query } = require('../database');
 
-const path = require('path');
-
-exports.abrirCrudCliente = (req, res) => {
-  res.sendFile(path.join(__dirname, '../../frontend/cliente/cliente.html'));
-};
-
 // Funções do controller
 
 exports.listarClientes = async (req, res) => {
@@ -27,9 +21,9 @@ exports.criarCliente = async (req, res) => {
     const { pessoa_cpf_pessoa, renda_cliente, data_cadastro_cliente } = req.body;
 
     // Validação básica
-    if (!renda_cliente) {
+    if (!pessoa_cpf_pessoa) {
       return res.status(400).json({
-        error: 'O nome do cliente é obrigatório'
+        error: 'O CPF da pessoa é obrigatório para cadastrar o cliente'
       });
     }
 

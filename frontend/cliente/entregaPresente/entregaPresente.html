@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Escolha como receber seu pedido e se deseja embrulho para presente na Parigot Presentes.">
+    <title>Entrega e presente | Parigot Presentes</title>
+    <link rel="stylesheet" href="entregaPresente.css">
+    <script src="entregaPresente.js" defer></script>
+</head>
+<body>
+    <header class="cabecalho">
+        <a class="marca" href="../dashboard/dashboard.html" aria-label="Voltar para a loja">
+            <img src="../../../imagens/logo-parigot.png" alt="Logo Parigot Presentes">
+            <span>Parigot <strong>Presentes</strong></span>
+        </a>
+        <a class="voltar" href="../carrinho/carrinho.html">← Voltar ao carrinho</a>
+    </header>
+
+    <main class="pagina">
+        <section class="introducao">
+            <p class="sobretitulo">ETAPA 1 DE 3</p>
+            <h1>Entrega e presente</h1>
+            <p>Escolha como deseja receber os produtos e quais deles deseja embrulhar para presente.</p>
+        </section>
+
+        <div class="grade">
+            <section class="painel">
+                <div class="titulo-secao">
+                    <span class="numero">01</span>
+                    <div>
+                        <h2>Como deseja receber?</h2>
+                        <p>Selecione uma das opções abaixo.</p>
+                    </div>
+                </div>
+
+                <div class="opcoes" role="radiogroup" aria-label="Forma de recebimento">
+                    <label class="opcao" for="retirada">
+                        <input type="radio" name="recebimento" id="retirada" value="retirada">
+                        <span class="icone">⌂</span>
+                        <span class="texto"><strong>Retirada na loja</strong><small>Você busca o pedido na loja.</small></span>
+                        <span class="marcador"></span>
+                    </label>
+                    <label class="opcao" for="entrega">
+                        <input type="radio" name="recebimento" id="entrega" value="entrega">
+                        <span class="icone">♧</span>
+                        <span class="texto"><strong>Entrega</strong><small>Receba o pedido no endereço informado à loja.</small></span>
+                        <span class="marcador"></span>
+                    </label>
+                </div>
+                <p class="observacao-entrega" id="observacaoEntrega">Selecione como deseja receber seu pedido.</p>
+
+                <div class="campo-endereco" id="campoEndereco" hidden>
+                    <label for="enderecoEntrega">Endereço para entrega</label>
+                    <textarea id="enderecoEntrega" rows="3" readonly aria-readonly="true" placeholder="Entre na sua conta para consultar o endereço cadastrado"></textarea>
+                    <small>Usaremos o endereço cadastrado na sua conta. Para alterá-lo, atualize seus dados cadastrais antes da compra.</small>
+                </div>
+
+                <div class="separador"></div>
+
+                <div class="titulo-secao">
+                    <span class="numero">02</span>
+                    <div>
+                        <h2>Embrulho para presente</h2>
+                        <p>Escolha individualmente quais produtos deseja embrulhar.</p>
+                    </div>
+                </div>
+                <div id="opcoesEmbrulho" class="opcoes-embrulho-produtos"></div>
+
+                <p class="mensagem" id="mensagemPreferencias" role="status" aria-live="polite"></p>
+                <div class="acoes">
+                    <a class="botao-secundario" href="../carrinho/carrinho.html">Voltar ao carrinho</a>
+                    <button class="botao-continuar" type="button" id="continuarPagamento" disabled>Ir para forma de pagamento <span aria-hidden="true">→</span></button>
+                </div>
+                <p class="nota">O valor e os detalhes da entrega serão confirmados pela loja. Esta escolha ainda não gera um pedido.</p>
+            </section>
+
+            <aside class="resumo">
+                <h2>Resumo do carrinho</h2>
+                <div id="listaProdutos" class="lista-produtos"></div>
+                <div class="linha"><span>Quantidade de itens</span><strong id="quantidadeItens">0</strong></div>
+                <div class="linha"><span>Subtotal dos produtos</span><strong id="subtotal">R$ 0,00</strong></div>
+                <div class="linha"><span>Taxa de entrega</span><strong id="taxaEntrega">R$ 0,00</strong></div>
+                <div class="linha"><span>Taxa de embrulho</span><strong id="taxaEmbrulho">R$ 0,00</strong></div>
+                <div class="linha"><span>Total parcial</span><strong id="totalParcial">R$ 0,00</strong></div>
+                <div class="linha"><span>Recebimento</span><strong id="resumoRecebimento">A escolher</strong></div>
+                <div class="linha"><span>Embrulho</span><strong id="resumoEmbrulho">Nenhum</strong></div>
+                <p class="nota-resumo">Entrega: R$ 7,00 por pedido. Embrulho: R$ 1,50 por unidade de produto selecionada.</p>
+            </aside>
+        </div>
+    </main>
+    <footer class="rodape">Parigot Presentes · Um presente especial em cada detalhe</footer>
+</body>
+</html>

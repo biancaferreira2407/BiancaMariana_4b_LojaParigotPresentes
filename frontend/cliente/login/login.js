@@ -136,9 +136,18 @@ function finalizarLogin(dados) {
     sessionStorage.setItem('perfil', dados.perfil);
 
     if (dados.perfil === 'admin') {
+        sessionStorage.removeItem('redirecionarAposLogin');
         window.location.href = '../../admin/menu/menu.html';
     } else {
-        window.location.href = '../dashboard/dashboard.html';
+        const destino = sessionStorage.getItem('redirecionarAposLogin');
+        sessionStorage.removeItem('redirecionarAposLogin');
+
+        // Só aceita destinos relativos do próprio frontend.
+        if (destino && destino.startsWith('../') && !destino.startsWith('//')) {
+            window.location.href = destino;
+        } else {
+            window.location.href = '../dashboard/dashboard.html';
+        }
     }
 }
 

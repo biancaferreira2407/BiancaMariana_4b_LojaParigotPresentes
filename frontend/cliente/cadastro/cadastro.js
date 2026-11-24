@@ -87,7 +87,6 @@ formCadastro.addEventListener('submit', async evento => {
         senha_pessoa: senha
     };
 
-    // A rota será criada na etapa de integração com o backend.
     try {
         botaoCadastrar.disabled = true;
         botaoCadastrar.textContent = 'Cadastrando...';
@@ -110,7 +109,7 @@ formCadastro.addEventListener('submit', async evento => {
     } catch (erro) {
         console.error('Erro ao cadastrar pessoa:', erro);
         mensagemCadastro.textContent = erro.message === 'Failed to fetch'
-            ? 'Não foi possível conectar ao servidor. A integração com o backend ainda precisa ser configurada.'
+            ? 'Não foi possível conectar ao servidor. Verifique se o backend está ligado.'
             : erro.message;
     } finally {
         botaoCadastrar.disabled = false;

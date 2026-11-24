@@ -1,193 +1,269 @@
 const { pool } = require('../database');
 
-function numeroValido(valor) {
-    return Number.isFinite(Number(valor));
+const IDS_FORMAS = { dinheiro: 1, credito: 2, debito: 3, pix: 4 };
+const JUROS_CREDITO = { 1: 0, 2: 20, 3: 30 };
+const TAXA_ENTREGA_CENTAVOS = 700;
+const TAXA_EMBRULHO_UNIDADE_CENTAVOS = 150;
+const centavos = valor => Math.round(Number(valor || 0) * 100);
+const reais = valor => Number((valor / 100).toFixed(2));
+
+function normalizarItens(itens) {
+    if (!Array.isArray(itens) || itens.length === 0) throw new Error('O carrinho está vazio ou inválido.');
+    const mapa = new Map();
+    for (const item of itens) {
+        const id = Number(item.id_produto ?? item.produto_id_produto);
+        const quantidade = Number(item.quantidade);
+        if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(quantidade) || quantidade <= 0) throw new Error('Produto ou quantidade inválida.');
+        const embrulhar = item.embrulhar === true || item.embrulhar === 'sim';
+        if (mapa.has(id)) {
+            const atual = mapa.get(id); atual.quantidade += quantidade; atual.embrulhar = atual.embrulhar || embrulhar;
+        } else mapa.set(id, { id_produto: id, quantidade, embrulhar });
+    }
+    return [...mapa.values()];
 }
 
+async function validarPreferencias(preferencias, db, cpf, itens) {
+    if (!preferencias || !['entrega', 'retirada'].includes(preferencias.recebimento)) throw new Error('Escolha entrega ou retirada.');
+    let endereco = null;
+    if (preferencias.recebimento === 'entrega') {
+        const cadastro = await db.query('SELECT endereco_pessoa FROM public.pessoa WHERE cpf_pessoa = $1', [cpf]);
+        endereco = String(cadastro.rows[0]?.endereco_pessoa || '').trim();
+        if (!endereco || endereco.length < 8 || endereco.length > 300) throw new Error('Não há endereço válido cadastrado. Atualize seu endereço no cadastro antes de escolher entrega.');
+    }
+    const embrulhos = preferencias.embrulhos && typeof preferencias.embrulhos === 'object' ? preferencias.embrulhos : {};
+    const idsValidos = new Set(itens.map(item => String(item.id_produto)));
+    for (const chave of Object.keys(embrulhos)) if (!idsValidos.has(String(chave))) delete embrulhos[chave];
+    return { recebimento: preferencias.recebimento, enderecoEntrega: endereco, embrulhos };
+}
+
+function calcularTaxas(preferencias, itens) {
+    const unidadesEmbrulhadas = itens.reduce((total, item) => total + (item.embrulhar ? item.quantidade : 0), 0);
+    const taxaEntregaCentavos = preferencias.recebimento === 'entrega' ? TAXA_ENTREGA_CENTAVOS : 0;
+    const taxaEmbrulhoCentavos = unidadesEmbrulhadas * TAXA_EMBRULHO_UNIDADE_CENTAVOS;
+    return { unidadesEmbrulhadas, taxa_entrega_centavos: taxaEntregaCentavos, taxa_embrulho_centavos: taxaEmbrulhoCentavos, total_base_centavos: taxaEntregaCentavos + taxaEmbrulhoCentavos };
+}
+
+async function consultarProdutos(client, itens, bloquear = false) {
+    const ids = itens.map(i => i.id_produto);
+    const result = await client.query(
+        `SELECT id_produto, nome_produto, preco_unitario_produto, quantidade_estoque_produto
+         FROM public.produto WHERE id_produto = ANY($1::integer[]) ${bloquear ? 'FOR UPDATE' : ''}`, [ids]
+    );
+    const banco = new Map(result.rows.map(p => [Number(p.id_produto), p]));
+    const validados = []; let subtotal = 0;
+    for (const item of itens) {
+        const produto = banco.get(item.id_produto);
+        if (!produto) throw new Error(`O produto ${item.id_produto} não foi encontrado.`);
+        const estoque = Number(produto.quantidade_estoque_produto || 0);
+        if (item.quantidade > estoque) throw new Error(`Estoque insuficiente para "${produto.nome_produto}". Disponível: ${estoque}.`);
+        const preco = centavos(produto.preco_unitario_produto);
+        const parcial = preco * item.quantidade; subtotal += parcial;
+        validados.push({ ...item, nome_produto: produto.nome_produto, preco_unitario_centavos: preco, subtotal_centavos: parcial, quantidade_estoque: estoque });
+    }
+    return { itens: validados, subtotal_centavos: subtotal };
+}
+
+function validarPagamentos(pagamentos, subtotalCentavos) {
+    if (!Array.isArray(pagamentos) || pagamentos.length === 0) throw new Error('Selecione pelo menos uma forma de pagamento.');
+    const usados = new Set(); let somaPrincipal = 0; let jurosTotal = 0;
+    const validados = pagamentos.map(p => {
+        const metodo = String(p.metodo || '').toLowerCase(); const idForma = IDS_FORMAS[metodo];
+        const principal = centavos(p.valor);
+        if (!idForma || !Number.isFinite(Number(p.valor)) || principal <= 0) throw new Error('Forma de pagamento ou valor inválido.');
+        if (usados.has(metodo)) throw new Error('Não envie a mesma forma de pagamento mais de uma vez.');
+        usados.add(metodo); somaPrincipal += principal;
+        let parcelas = null, percentual = 0, juros = 0;
+        if (metodo === 'credito') {
+            parcelas = Number(p.parcelas);
+            if (![1,2,3].includes(parcelas)) throw new Error('O cartão de crédito permite pagamento à vista, em 2 ou em 3 parcelas.');
+            percentual = JUROS_CREDITO[parcelas]; juros = Math.round(principal * percentual / 100); jurosTotal += juros;
+        }
+        let precisaTroco = false, valorTroco = null;
+        if (metodo === 'dinheiro' && p.precisaTroco) {
+            precisaTroco = true; valorTroco = centavos(p.valorTroco);
+            if (!Number.isFinite(Number(p.valorTroco)) || valorTroco <= principal) throw new Error('O valor informado para troco deve ser maior que a parte paga em dinheiro.');
+        }
+        return { metodo, id_forma: idForma, principal_centavos: principal, percentual_juros: percentual, juros_centavos: juros, total_centavos: principal + juros, parcelas, precisa_troco: precisaTroco, valor_troco_centavos: valorTroco };
+    });
+    if (somaPrincipal !== subtotalCentavos) throw new Error(`A soma das partes destinadas às formas de pagamento deve ser igual ao subtotal da compra com as taxas (${reais(subtotalCentavos).toFixed(2)}).`);
+    return { pagamentos: validados, juros_total_centavos: jurosTotal, total_centavos: subtotalCentavos + jurosTotal };
+}
+
+exports.obterEnderecoCliente = async (req, res) => {
+    try {
+        const result = await pool.query('SELECT endereco_pessoa FROM public.pessoa WHERE cpf_pessoa = $1', [req.usuario.cpf]);
+        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Cadastro de pessoa não encontrado.' });
+        return res.json({ sucesso: true, endereco: result.rows[0].endereco_pessoa || '' });
+    } catch (error) { console.error('Erro ao consultar endereço:', error); return res.status(500).json({ sucesso: false, mensagem: 'Não foi possível consultar o endereço cadastrado.' }); }
+};
+
+exports.validarCarrinho = async (req, res) => {
+    try {
+        const itens = normalizarItens(req.body.itens || req.body.produtos);
+        const dados = await consultarProdutos(pool, itens);
+        return res.json({ sucesso: true, itens: dados.itens.map(i => ({ id_produto: i.id_produto, nome_produto: i.nome_produto, preco_unitario: reais(i.preco_unitario_centavos), quantidade: i.quantidade, quantidade_estoque: i.quantidade_estoque, subtotal: reais(i.subtotal_centavos) })), total: reais(dados.subtotal_centavos) });
+    } catch (error) { const status = /Estoque insuficiente/.test(error.message) ? 409 : 400; return res.status(status).json({ sucesso: false, mensagem: error.message || 'Não foi possível validar o carrinho.' }); }
+};
+
+exports.validarPagamento = async (req, res) => {
+    try {
+        const cliente = await pool.query('SELECT 1 FROM public.cliente WHERE pessoa_cpf_pessoa = $1', [req.usuario.cpf]);
+        if (!cliente.rowCount) return res.status(403).json({ sucesso: false, mensagem: 'A conta autenticada não está cadastrada como cliente.' });
+        const itens = normalizarItens(req.body.itens || req.body.produtos);
+        const preferencias = await validarPreferencias(req.body.preferenciasPedido, pool, req.usuario.cpf, itens);
+        for (const item of itens) item.embrulhar = preferencias.embrulhos[String(item.id_produto)] === true;
+        const dados = await consultarProdutos(pool, itens);
+        const taxas = calcularTaxas(preferencias, itens);
+        const subtotalComTaxas = dados.subtotal_centavos + taxas.total_base_centavos;
+        const pagamento = validarPagamentos(req.body.pagamentos, subtotalComTaxas);
+        const ids = pagamento.pagamentos.map(p => p.id_forma);
+        const formas = await pool.query('SELECT id_forma_pagamento FROM public.forma_pagamento WHERE id_forma_pagamento = ANY($1::integer[])', [ids]);
+        const existentes = new Set(formas.rows.map(f => Number(f.id_forma_pagamento)));
+        if (ids.some(id => !existentes.has(id))) return res.status(409).json({ sucesso: false, mensagem: 'Uma das formas de pagamento selecionadas não está cadastrada.' });
+        return res.json({
+            sucesso: true, mensagem: 'Dados da compra validados. Nenhum pedido foi criado.',
+            subtotal_produtos: reais(dados.subtotal_centavos), taxa_entrega: reais(taxas.taxa_entrega_centavos), taxa_embrulho: reais(taxas.taxa_embrulho_centavos), juros_total: reais(pagamento.juros_total_centavos), total: reais(pagamento.total_centavos),
+            recebimento: preferencias.recebimento, endereco_entrega: preferencias.enderecoEntrega,
+            itens: dados.itens.map(i => ({ id_produto: i.id_produto, nome_produto: i.nome_produto, quantidade: i.quantidade, preco_unitario: reais(i.preco_unitario_centavos), subtotal: reais(i.subtotal_centavos), embrulhar: i.embrulhar })),
+            pagamentos: pagamento.pagamentos.map(p => ({ metodo: p.metodo, forma_pagamento_id_forma_pagamento: p.id_forma, valor: reais(p.principal_centavos), valor_principal: reais(p.principal_centavos), percentual_juros: p.percentual_juros, valor_juros: reais(p.juros_centavos), valor_total: reais(p.total_centavos), parcelas: p.parcelas, valor_troco: p.valor_troco_centavos == null ? null : reais(p.valor_troco_centavos), precisaTroco: p.precisa_troco }))
+        });
+    } catch (error) { console.error('Erro ao validar pagamento:', error); const status = /Estoque insuficiente/.test(error.message) ? 409 : 400; return res.status(status).json({ sucesso: false, mensagem: error.message || 'Não foi possível validar o pagamento.' }); }
+};
+
 exports.criarPedido = async (req, res) => {
-    const {
-        data_pedido,
-        cliente_pessoa_cpf_pessoa,
-        funcionario_pessoa_cpf_pessoa,
-        produtos,
-        pagamentos
-    } = req.body;
-
-    if (!data_pedido) {
-        return res.status(400).json({ sucesso: false, mensagem: 'A data do pedido é obrigatória.' });
-    }
-
-    if (!Array.isArray(produtos) || produtos.length === 0) {
-        return res.status(400).json({ sucesso: false, mensagem: 'O pedido precisa ter pelo menos um produto.' });
-    }
-
-    if (!Array.isArray(pagamentos) || pagamentos.length === 0) {
-        return res.status(400).json({ sucesso: false, mensagem: 'O pedido precisa ter pelo menos uma forma de pagamento.' });
-    }
-
     const client = await pool.connect();
-
     try {
         await client.query('BEGIN');
+        const cliente = await client.query('SELECT 1 FROM public.cliente WHERE pessoa_cpf_pessoa = $1', [req.usuario.cpf]);
+        if (!cliente.rowCount) throw new Error('A conta autenticada não está cadastrada como cliente.');
+        const itens = normalizarItens(req.body.itens || req.body.produtos);
+        const preferencias = await validarPreferencias(req.body.preferenciasPedido, client, req.usuario.cpf, itens);
+        for (const item of itens) item.embrulhar = preferencias.embrulhos[String(item.id_produto)] === true;
+        const dados = await consultarProdutos(client, itens, true);
+        const taxas = calcularTaxas(preferencias, itens);
+        const subtotalComTaxas = dados.subtotal_centavos + taxas.total_base_centavos;
+        const pagamento = validarPagamentos(req.body.pagamentos, subtotalComTaxas);
+        const ids = pagamento.pagamentos.map(p => p.id_forma);
+        const formas = await client.query('SELECT id_forma_pagamento FROM public.forma_pagamento WHERE id_forma_pagamento = ANY($1::integer[])', [ids]);
+        const existentes = new Set(formas.rows.map(f => Number(f.id_forma_pagamento)));
+        if (ids.some(id => !existentes.has(id))) throw new Error('Uma das formas de pagamento selecionadas não está cadastrada.');
 
-        // Confere cliente, quando informado.
-        if (cliente_pessoa_cpf_pessoa) {
-            const cliente = await client.query(
-                'SELECT 1 FROM public.cliente WHERE pessoa_cpf_pessoa = $1',
-                [cliente_pessoa_cpf_pessoa]
-            );
-
-            if (cliente.rowCount === 0) {
-                throw new Error('Cliente informado não está cadastrado como cliente.');
-            }
-        }
-
-        // Confere funcionário, quando informado.
-        if (funcionario_pessoa_cpf_pessoa) {
-            const funcionario = await client.query(
-                'SELECT 1 FROM public.funcionario WHERE pessoa_cpf_pessoa = $1',
-                [funcionario_pessoa_cpf_pessoa]
-            );
-
-            if (funcionario.rowCount === 0) {
-                throw new Error('Funcionário informado não está cadastrado como funcionário.');
-            }
-        }
-
-        // Insere o pedido e deixa o PostgreSQL gerar o ID pela sequence.
         const pedidoResult = await client.query(
-            `INSERT INTO public.pedido
-                (data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa)
-             VALUES ($1, $2, $3)
-             RETURNING *`,
-            [
-                data_pedido,
-                cliente_pessoa_cpf_pessoa || null,
-                funcionario_pessoa_cpf_pessoa || null
-            ]
+            `INSERT INTO public.pedido (data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa, entrega_ou_retirada, status_pedido, endereco_entrega)
+             VALUES (CURRENT_DATE, $1, NULL, $2, 'Aguardando confirmação', $3) RETURNING *`,
+            [req.usuario.cpf, preferencias.recebimento, preferencias.enderecoEntrega]
         );
-
         const pedido = pedidoResult.rows[0];
-        let valorTotal = 0;
-
-        // Produtos: pega o preço atual do banco e grava esse preço no pedido.
-        for (const item of produtos) {
-            const idProduto = Number(item.produto_id_produto);
-            const quantidade = Number(item.quantidade);
-
-            if (!Number.isInteger(idProduto) || !Number.isInteger(quantidade) || quantidade <= 0) {
-                throw new Error('Produto ou quantidade inválida.');
-            }
-
-            const produtoResult = await client.query(
-                `SELECT id_produto, nome_produto, quantidade_estoque_produto, preco_unitario_produto
-                 FROM public.produto
-                 WHERE id_produto = $1
-                 FOR UPDATE`,
-                [idProduto]
-            );
-
-            if (produtoResult.rowCount === 0) {
-                throw new Error(`Produto ${idProduto} não encontrado.`);
-            }
-
-            const produto = produtoResult.rows[0];
-            const estoque = Number(produto.quantidade_estoque_produto || 0);
-            const preco = Number(produto.preco_unitario_produto || 0);
-
-            if (quantidade > estoque) {
-                throw new Error(`Estoque insuficiente para o produto "${produto.nome_produto}". Disponível: ${estoque}.`);
-            }
-
-            valorTotal += quantidade * preco;
-
+        for (const item of dados.itens) {
             await client.query(
-                `INSERT INTO public.pedido_has_produto
-                    (produto_id_produto, pedido_id_pedido, quantidade, preco_unitario)
-                 VALUES ($1, $2, $3, $4)`,
-                [idProduto, pedido.id_pedido, quantidade, preco]
+                `INSERT INTO public.pedido_has_produto (produto_id_produto, pedido_id_pedido, embrulhar, quantidade, preco_unitario)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [item.id_produto, pedido.id_pedido, item.embrulhar ? 'sim' : 'nao', item.quantidade, reais(item.preco_unitario_centavos)]
             );
-
+            await client.query('UPDATE public.produto SET quantidade_estoque_produto = quantidade_estoque_produto - $1 WHERE id_produto = $2', [item.quantidade, item.id_produto]);
+        }
+        await client.query(
+            `INSERT INTO public.pagamento (pedido_id_pedido, data_pagamento, valor_total_pagamento, subtotal_produtos, taxa_entrega, taxa_embrulho, juros_total, status_pagamento)
+             VALUES ($1, NULL, $2, $3, $4, $5, $6, 'Pendente')`,
+            [pedido.id_pedido, reais(pagamento.total_centavos), reais(dados.subtotal_centavos), reais(taxas.taxa_entrega_centavos), reais(taxas.taxa_embrulho_centavos), reais(pagamento.juros_total_centavos)]
+        );
+        for (const p of pagamento.pagamentos) {
             await client.query(
-                `UPDATE public.produto
-                 SET quantidade_estoque_produto = quantidade_estoque_produto - $1
-                 WHERE id_produto = $2`,
-                [quantidade, idProduto]
+                `INSERT INTO public.pagamento_has_forma_pagamento
+                 (pagamento_id_pedido, forma_pagamento_id_forma_pagamento, valor_pago, valor_previsto, valor_principal, percentual_juros, valor_juros, parcelas, precisa_troco, valor_troco)
+                 VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9)`,
+                [pedido.id_pedido, p.id_forma, reais(p.total_centavos), reais(p.principal_centavos), p.percentual_juros, reais(p.juros_centavos), p.parcelas, p.precisa_troco, p.valor_troco_centavos == null ? null : reais(p.valor_troco_centavos)]
             );
         }
+        await client.query('COMMIT');
+        return res.status(201).json({ sucesso: true, mensagem: 'Pedido registrado com sucesso. A loja confirmará os detalhes da entrega e do pagamento.', pedido: { id_pedido: pedido.id_pedido, data_pedido: pedido.data_pedido, status_pedido: pedido.status_pedido, recebimento: preferencias.recebimento, endereco_entrega: preferencias.enderecoEntrega, subtotal: reais(dados.subtotal_centavos), taxa_entrega: reais(taxas.taxa_entrega_centavos), taxa_embrulho: reais(taxas.taxa_embrulho_centavos), juros: reais(pagamento.juros_total_centavos), total: reais(pagamento.total_centavos) } });
+    } catch (error) {
+        await client.query('ROLLBACK'); console.error('Erro ao criar pedido:', error);
+        const status = /Estoque insuficiente/.test(error.message) ? 409 : 400;
+        return res.status(status).json({ sucesso: false, mensagem: error.message || 'Não foi possível registrar o pedido.' });
+    } finally { client.release(); }
+};
 
-        // Evita diferenças causadas por ponto flutuante.
-        valorTotal = Math.round(valorTotal * 100) / 100;
+// Pedido lançado pelo balcão (administração): informa cliente, funcionário,
+// produtos e as formas de pagamento já recebidas. Os preços vêm sempre do banco.
+exports.criarPedidoAdmin = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa, produtos, pagamentos } = req.body;
 
-        let valorPagoTotal = 0;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data_pedido || ''))) throw new Error('Informe uma data de pedido válida.');
+        if (!cliente_pessoa_cpf_pessoa) throw new Error('Selecione o cliente do pedido.');
+        if (!Array.isArray(pagamentos) || pagamentos.length === 0) throw new Error('Informe pelo menos uma forma de pagamento.');
 
-        for (const pagamento of pagamentos) {
-            const idForma = Number(pagamento.forma_pagamento_id_forma_pagamento);
-            const valorPago = Number(pagamento.valor_pago);
+        const itens = normalizarItens((produtos || []).map(p => ({ id_produto: p.produto_id_produto ?? p.id_produto, quantidade: p.quantidade })));
 
-            if (!Number.isInteger(idForma) || !numeroValido(valorPago) || valorPago <= 0) {
-                throw new Error('Forma de pagamento ou valor pago inválido.');
-            }
+        await client.query('BEGIN');
 
-            const formaResult = await client.query(
-                'SELECT 1 FROM public.forma_pagamento WHERE id_forma_pagamento = $1',
-                [idForma]
-            );
+        const cliente = await client.query('SELECT 1 FROM public.cliente WHERE pessoa_cpf_pessoa = $1', [cliente_pessoa_cpf_pessoa]);
+        if (!cliente.rowCount) throw new Error('Cliente não encontrado.');
 
-            if (formaResult.rowCount === 0) {
-                throw new Error(`A forma de pagamento ${idForma} não existe.`);
-            }
-
-            valorPagoTotal += valorPago;
+        if (funcionario_pessoa_cpf_pessoa) {
+            const funcionario = await client.query('SELECT 1 FROM public.funcionario WHERE pessoa_cpf_pessoa = $1', [funcionario_pessoa_cpf_pessoa]);
+            if (!funcionario.rowCount) throw new Error('Funcionário não encontrado.');
         }
 
-        valorPagoTotal = Math.round(valorPagoTotal * 100) / 100;
+        const dados = await consultarProdutos(client, itens, true);
 
-        if (Math.abs(valorPagoTotal - valorTotal) > 0.009) {
-            throw new Error(`O total pago (${valorPagoTotal.toFixed(2)}) deve ser igual ao total do pedido (${valorTotal.toFixed(2)}).`);
+        const ids = new Set();
+        let somaPago = 0;
+        const formas = [];
+        for (const p of pagamentos) {
+            const idForma = Number(p.forma_pagamento_id_forma_pagamento);
+            const valor = centavos(p.valor_pago);
+            if (!Number.isInteger(idForma) || idForma <= 0 || valor <= 0) throw new Error('Forma de pagamento ou valor inválido.');
+            if (ids.has(idForma)) throw new Error('Não repita a mesma forma de pagamento no pedido.');
+            ids.add(idForma);
+            somaPago += valor;
+            formas.push({ idForma, valor });
+        }
+        if (somaPago !== dados.subtotal_centavos) throw new Error(`O pagamento precisa totalizar ${reais(dados.subtotal_centavos).toFixed(2)}.`);
+
+        const existentes = await client.query('SELECT id_forma_pagamento FROM public.forma_pagamento WHERE id_forma_pagamento = ANY($1::integer[])', [[...ids]]);
+        if (existentes.rowCount !== ids.size) throw new Error('Uma das formas de pagamento selecionadas não está cadastrada.');
+
+        const pedidoResult = await client.query(
+            `INSERT INTO public.pedido (data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa, entrega_ou_retirada, status_pedido, endereco_entrega)
+             VALUES ($1, $2, $3, 'retirada', 'concluído', NULL) RETURNING *`,
+            [data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa || null]
+        );
+        const pedido = pedidoResult.rows[0];
+
+        for (const item of dados.itens) {
+            await client.query(
+                `INSERT INTO public.pedido_has_produto (produto_id_produto, pedido_id_pedido, embrulhar, quantidade, preco_unitario)
+                 VALUES ($1, $2, 'nao', $3, $4)`,
+                [item.id_produto, pedido.id_pedido, item.quantidade, reais(item.preco_unitario_centavos)]
+            );
+            await client.query('UPDATE public.produto SET quantidade_estoque_produto = quantidade_estoque_produto - $1 WHERE id_produto = $2', [item.quantidade, item.id_produto]);
         }
 
         await client.query(
-            `INSERT INTO public.pagamento
-                (pedido_id_pedido, data_pagamento, valor_total_pagamento)
-             VALUES ($1, CURRENT_TIMESTAMP, $2)`,
-            [pedido.id_pedido, valorTotal]
+            `INSERT INTO public.pagamento (pedido_id_pedido, data_pagamento, valor_total_pagamento, subtotal_produtos, taxa_entrega, taxa_embrulho, juros_total, status_pagamento)
+             VALUES ($1, NOW(), $2, $3, 0, 0, 0, 'Pago')`,
+            [pedido.id_pedido, reais(dados.subtotal_centavos), reais(dados.subtotal_centavos)]
         );
-
-        for (const pagamento of pagamentos) {
+        for (const f of formas) {
             await client.query(
                 `INSERT INTO public.pagamento_has_forma_pagamento
-                    (pagamento_id_pedido, forma_pagamento_id_forma_pagamento, valor_pago)
-                 VALUES ($1, $2, $3)`,
-                [
-                    pedido.id_pedido,
-                    Number(pagamento.forma_pagamento_id_forma_pagamento),
-                    Number(pagamento.valor_pago)
-                ]
+                 (pagamento_id_pedido, forma_pagamento_id_forma_pagamento, valor_pago, valor_previsto, valor_principal, percentual_juros, valor_juros, parcelas, precisa_troco, valor_troco)
+                 VALUES ($1, $2, $3, $4, $5, 0, 0, NULL, FALSE, NULL)`,
+                [pedido.id_pedido, f.idForma, reais(f.valor), reais(f.valor), reais(f.valor)]
             );
         }
 
         await client.query('COMMIT');
-
-        res.status(201).json({
-            sucesso: true,
-            mensagem: 'Pedido criado com sucesso!',
-            pedido: {
-                ...pedido,
-                valor_total: valorTotal
-            }
-        });
+        return res.status(201).json({ sucesso: true, mensagem: 'Pedido registrado com sucesso.', pedido: { id_pedido: pedido.id_pedido, data_pedido: pedido.data_pedido, total: reais(dados.subtotal_centavos) } });
     } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('Erro ao criar pedido:', error);
-
-        res.status(400).json({
-            sucesso: false,
-            mensagem: error.message || 'Não foi possível criar o pedido.'
-        });
-    } finally {
-        client.release();
-    }
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao criar pedido (admin):', error);
+        const status = /Estoque insuficiente/.test(error.message) ? 409 : 400;
+        return res.status(status).json({ sucesso: false, mensagem: error.message || 'Não foi possível registrar o pedido.' });
+    } finally { client.release(); }
 };
 
 exports.listarPedidos = async (req, res) => {
@@ -196,9 +272,16 @@ exports.listarPedidos = async (req, res) => {
             SELECT
                 p.id_pedido,
                 p.data_pedido,
+                p.entrega_ou_retirada,
+                p.endereco_entrega,
+                p.status_pedido,
                 pc.nome_pessoa AS nome_cliente,
                 pf.nome_pessoa AS nome_funcionario,
-                pg.valor_total_pagamento AS valor_total
+                pg.valor_total_pagamento AS valor_total,
+                pg.subtotal_produtos,
+                pg.taxa_entrega,
+                pg.taxa_embrulho,
+                pg.juros_total
             FROM public.pedido p
             LEFT JOIN public.pessoa pc
                 ON pc.cpf_pessoa = p.cliente_pessoa_cpf_pessoa
@@ -228,9 +311,16 @@ exports.obterPedido = async (req, res) => {
             SELECT
                 p.id_pedido,
                 p.data_pedido,
+                p.entrega_ou_retirada,
+                p.endereco_entrega,
+                p.status_pedido,
                 pc.nome_pessoa AS nome_cliente,
                 pf.nome_pessoa AS nome_funcionario,
-                pg.valor_total_pagamento AS valor_total
+                pg.valor_total_pagamento AS valor_total,
+                pg.subtotal_produtos,
+                pg.taxa_entrega,
+                pg.taxa_embrulho,
+                pg.juros_total
             FROM public.pedido p
             LEFT JOIN public.pessoa pc
                 ON pc.cpf_pessoa = p.cliente_pessoa_cpf_pessoa
@@ -250,7 +340,8 @@ exports.obterPedido = async (req, res) => {
                 pr.id_produto,
                 pr.nome_produto,
                 php.quantidade,
-                php.preco_unitario
+                php.preco_unitario,
+                php.embrulhar
             FROM public.pedido_has_produto php
             INNER JOIN public.produto pr
                 ON pr.id_produto = php.produto_id_produto
@@ -261,7 +352,12 @@ exports.obterPedido = async (req, res) => {
         const pagamentosResult = await pool.query(`
             SELECT
                 fp.nome_forma_pagamento,
-                phfp.valor_pago
+                COALESCE(phfp.valor_previsto, phfp.valor_pago) AS valor_previsto,
+                COALESCE(phfp.valor_pago, phfp.valor_previsto) AS valor_pago,
+                phfp.valor_principal,
+                phfp.percentual_juros,
+                phfp.valor_juros,
+                phfp.parcelas
             FROM public.pagamento_has_forma_pagamento phfp
             INNER JOIN public.forma_pagamento fp
                 ON fp.id_forma_pagamento = phfp.forma_pagamento_id_forma_pagamento
@@ -270,7 +366,7 @@ exports.obterPedido = async (req, res) => {
         `, [id]);
 
         const totalPago = pagamentosResult.rows.reduce(
-            (total, pagamento) => total + Number(pagamento.valor_pago || 0),
+            (total, pagamento) => total + Number(pagamento.valor_previsto || 0),
             0
         );
 
@@ -280,6 +376,7 @@ exports.obterPedido = async (req, res) => {
                 ...pedidoResult.rows[0],
                 produtos: produtosResult.rows,
                 pagamentos: pagamentosResult.rows,
+                total_previsto: Math.round(totalPago * 100) / 100,
                 total_pago: Math.round(totalPago * 100) / 100
             }
         });
@@ -297,11 +394,19 @@ exports.listarPedidosCliente = async (req, res) => {
                 p.id_pedido,
                 p.data_pedido,
                 pg.valor_total_pagamento AS valor_total,
+                pg.subtotal_produtos,
+                pg.taxa_entrega,
+                pg.taxa_embrulho,
+                pg.juros_total,
+                p.entrega_ou_retirada,
+                p.endereco_entrega,
+                p.status_pedido,
                 COALESCE((
                     SELECT json_agg(json_build_object(
                         'nome_produto', pr.nome_produto,
                         'quantidade', php.quantidade,
-                        'preco_unitario', php.preco_unitario
+                        'preco_unitario', php.preco_unitario,
+                        'embrulhar', php.embrulhar
                     ))
                     FROM public.pedido_has_produto php
                     INNER JOIN public.produto pr

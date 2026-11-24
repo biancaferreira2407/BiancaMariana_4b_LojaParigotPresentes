@@ -1,0 +1,163 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    min-height: 100vh;
+    background: #FFFBF6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: #4D3328;
+}
+
+.container {
+    width: 100%;
+    max-width: 440px;
+}
+
+.card {
+    background: #fff;
+    padding: 35px;
+    border-radius: 18px;
+    box-shadow: 0 5px 25px rgba(77, 51, 40, 0.10);
+}
+
+.voltar {
+    display: inline-block;
+    color: #734C37;
+    text-decoration: none;
+    font-size: 13px;
+    margin-bottom: 25px;
+}
+
+.voltar:hover {
+    color: #CC6060;
+}
+
+.icone {
+    width: 65px;
+    height: 65px;
+    background: #FCEADB;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 20px;
+    font-size: 27px;
+}
+
+h1 {
+    text-align: center;
+    font-size: 23px;
+    color: #4D3328;
+    margin-bottom: 10px;
+}
+
+.descricao {
+    text-align: center;
+    color: #8A7163;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 28px;
+}
+
+.etapa {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.etapa label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4D3328;
+}
+
+.etapa input {
+    width: 100%;
+    padding: 13px;
+    border: 1px solid #F0D5C9;
+    border-radius: 8px;
+    outline: none;
+    font-size: 13px;
+    color: #4D3328;
+    background: #FFFBF6;
+}
+
+.etapa input:focus {
+    border-color: #CC6060;
+}
+
+.etapa button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 8px;
+    background: #CC6060;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: 0.2s;
+}
+
+.etapa button:hover {
+    background: #B94F58;
+}
+
+.etapa .botao-secundario {
+    background: transparent;
+    color: #734C37;
+    border: 1px solid #F0D5C9;
+    margin-top: 0;
+}
+
+.etapa .botao-secundario:hover {
+    background: #FCEADB;
+}
+
+.escondido {
+    display: none;
+}
+
+.mensagem {
+    display: none;
+    padding: 11px;
+    border-radius: 8px;
+    font-size: 12px;
+    text-align: center;
+    margin-bottom: 18px;
+}
+
+.mensagem.sucesso {
+    display: block;
+    background: #E8F5E9;
+    color: #286438;
+}
+
+.mensagem.erro {
+    display: block;
+    background: #FCE8E6;
+    color: #A33D35;
+}
+
+.rodape {
+    text-align: center;
+    margin-top: 28px;
+    color: #A37858;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+@media (max-width: 480px) {
+    .card {
+        padding: 25px 20px;
+    }
+}

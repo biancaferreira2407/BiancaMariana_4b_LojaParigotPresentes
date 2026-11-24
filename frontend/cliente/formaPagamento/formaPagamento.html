@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Escolha as formas de pagamento da sua compra na Parigot Presentes.">
+    <title>Forma de pagamento | Parigot Presentes</title>
+    <link rel="stylesheet" href="formaPagamento.css">
+    <script src="formaPagamento.js" defer></script>
+</head>
+<body>
+    <header class="cabecalho">
+        <a class="marca" href="../dashboard/dashboard.html" aria-label="Voltar para a loja">
+            <img src="../../../imagens/logo-parigot.png" alt="Logo Parigot Presentes">
+            <span>Parigot <strong>Presentes</strong></span>
+        </a>
+        <a class="voltar" href="../entregaPresente/entregaPresente.html">← Voltar à entrega e presente</a>
+    </header>
+
+    <main class="pagina">
+        <section class="introducao">
+            <p class="sobretitulo">ETAPA 2 DE 3</p>
+            <h1>Forma de pagamento</h1>
+            <p>Escolha uma ou mais opções e distribua o valor da sua compra entre elas.</p>
+        </section>
+
+        <div class="grade-pagina">
+            <section class="area-pagamento" aria-labelledby="tituloOpcoes">
+                <div class="titulo-secao">
+                    <div>
+                        <h2 id="tituloOpcoes">Como deseja pagar?</h2>
+                        <p>Selecione as formas que pretende utilizar.</p>
+                    </div>
+                    <span class="selo-multiplas">Pode combinar</span>
+                </div>
+
+                <div class="opcoes-pagamento">
+                    <article class="opcao-pagamento">
+                        <label class="cabecalho-opcao" for="usarPix">
+                            <input type="checkbox" id="usarPix" data-metodo="pix">
+                            <span class="icone-metodo pix">PIX</span>
+                            <span class="texto-metodo"><strong>PIX</strong><small>Pagamento via PIX</small></span>
+                            <span class="marcador-selecao" aria-hidden="true"></span>
+                        </label>
+                        <div class="detalhes-metodo" id="detalhesPix" hidden>
+                            <label for="valorPix">Quanto deseja pagar com PIX?</label>
+                            <div class="campo-valor"><span>R$</span><input id="valorPix" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" disabled></div>
+                            <small>O QR Code e o código PIX Copia e Cola serão gerados na próxima etapa, depois que você confirmar o pedido.</small>
+                        </div>
+                    </article>
+
+                    <article class="opcao-pagamento">
+                        <label class="cabecalho-opcao" for="usarCredito">
+                            <input type="checkbox" id="usarCredito" data-metodo="credito">
+                            <span class="icone-metodo credito">▣</span>
+                            <span class="texto-metodo"><strong>Cartão de crédito</strong><small>Possibilidade de parcelamento</small></span>
+                            <span class="marcador-selecao" aria-hidden="true"></span>
+                        </label>
+                        <div class="detalhes-metodo" id="detalhesCredito" hidden>
+                            <label for="valorCredito">Qual parte do subtotal deseja pagar no crédito (antes dos juros)?</label>
+                            <div class="campo-valor"><span>R$</span><input id="valorCredito" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" disabled></div>
+                            <label for="parcelasCredito" class="label-secundaria">Parcelamento</label>
+                            <select id="parcelasCredito" disabled>
+                                <option value="1">À vista</option>
+                                <option value="2">2 parcelas</option>
+                                <option value="3">3 parcelas (30% de juros)</option>
+                            </select>
+                            <small>Os juros são aplicados somente ao valor destinado ao crédito: 0% em 1x, 20% em 2x e 30% em 3x. Informe o valor antes dos juros.</small>
+                        </div>
+                    </article>
+
+                    <article class="opcao-pagamento">
+                        <label class="cabecalho-opcao" for="usarDebito">
+                            <input type="checkbox" id="usarDebito" data-metodo="debito">
+                            <span class="icone-metodo debito">▤</span>
+                            <span class="texto-metodo"><strong>Cartão de débito</strong><small>Pagamento em uma vez</small></span>
+                            <span class="marcador-selecao" aria-hidden="true"></span>
+                        </label>
+                        <div class="detalhes-metodo" id="detalhesDebito" hidden>
+                            <label for="valorDebito">Quanto deseja pagar no débito?</label>
+                            <div class="campo-valor"><span>R$</span><input id="valorDebito" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" disabled></div>
+                            <small>Os dados do cartão serão tratados somente por um serviço de pagamento seguro, quando integrado.</small>
+                        </div>
+                    </article>
+
+                    <article class="opcao-pagamento">
+                        <label class="cabecalho-opcao" for="usarDinheiro">
+                            <input type="checkbox" id="usarDinheiro" data-metodo="dinheiro">
+                            <span class="icone-metodo dinheiro">R$</span>
+                            <span class="texto-metodo"><strong>Dinheiro</strong><small>Pagamento em dinheiro</small></span>
+                            <span class="marcador-selecao" aria-hidden="true"></span>
+                        </label>
+                        <div class="detalhes-metodo" id="detalhesDinheiro" hidden>
+                            <label for="valorDinheiro">Quanto deseja pagar em dinheiro?</label>
+                            <div class="campo-valor"><span>R$</span><input id="valorDinheiro" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" disabled></div>
+                            <label class="checkbox-troco" for="precisaTroco"><input type="checkbox" id="precisaTroco" disabled> Preciso de troco</label>
+                            <div id="campoTroco" hidden>
+                                <label for="valorTroco">Troco para quanto?</label>
+                                <div class="campo-valor"><span>R$</span><input id="valorTroco" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" disabled></div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <p class="mensagem" id="mensagemPagamento" role="status" aria-live="polite"></p>
+                <div class="acoes">
+                    <a class="botao-secundario" href="../carrinho/carrinho.html">Voltar ao carrinho</a>
+                    <button class="botao-continuar" type="button" id="continuarPagamento" disabled>Continuar <span aria-hidden="true">→</span></button>
+                </div>
+                <p class="aviso-seguranca">Esta etapa registra apenas a forma escolhida para o pedido; não processa transações financeiras. Entrega: R$ 7,00 por pedido. Embrulho: R$ 1,50 por unidade selecionada. Os valores são recalculados pelo servidor.</p>
+            </section>
+
+            <aside class="resumo" aria-labelledby="tituloResumo">
+                <h2 id="tituloResumo">Resumo da compra</h2>
+                <div id="listaResumo" class="lista-resumo"></div>
+                <div class="linha-resumo"><span>Subtotal dos produtos</span><strong id="subtotalResumo">R$ 0,00</strong></div>
+                <div class="linha-resumo"><span>Entrega</span><strong id="freteResumo">R$ 0,00</strong></div>
+                <div class="linha-resumo"><span>Embrulho</span><strong id="embrulhoTaxaResumo">R$ 0,00</strong></div>
+                <div class="linha-resumo"><span>Juros do crédito</span><strong id="jurosResumo">R$ 0,00</strong></div>
+                <div class="linha-resumo"><span>Recebimento</span><strong id="tipoRecebimentoResumo">Não selecionado</strong></div>
+                <div class="linha-resumo"><span>Embrulho para presente</span><strong id="embrulhoResumo">Não selecionado</strong></div>
+                <div class="linha-resumo"><span>Entrega</span><span class="entrega" id="entregaResumo">A combinar</span></div>
+                <div class="linha-total"><span>Total com juros</span><strong id="totalResumo">R$ 0,00</strong></div>
+                <div class="divisor"></div>
+                <h3>Distribuição do pagamento</h3>
+                <div id="distribuicao" class="distribuicao"><p>Selecione uma forma de pagamento para distribuir o valor.</p></div>
+                <div class="linha-restante"><span>Valor restante</span><strong id="valorRestante">R$ 0,00</strong></div>
+            </aside>
+        </div>
+    </main>
+    <footer class="rodape">Parigot Presentes · Um presente especial em cada detalhe</footer>
+</body>
+</html>

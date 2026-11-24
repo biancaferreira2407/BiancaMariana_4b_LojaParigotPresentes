@@ -1,4 +1,4 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const path = require('path');
 
 // Carrega o .env localizado na pasta backend
@@ -12,6 +12,9 @@ for (const variavel of variaveisObrigatorias) {
         throw new Error(`❌ A variável de ambiente '${variavel}' não está definida no arquivo .env`);
     }
 }
+
+// Tipo DATE (OID 1082) devolvido como texto 'AAAA-MM-DD', sem conversão de fuso horário.
+types.setTypeParser(1082, valor => valor);
 
 const pool = new Pool({
     host: process.env.DB_HOST,

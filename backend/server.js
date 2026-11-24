@@ -17,6 +17,7 @@ const devolucaoRoutes = require('./routes/devolucaoRoutes');
 const loginRoutes = require('./routes/loginRoutes');
 const contaRoutes = require('./routes/contaRoutes');
 const cadastroRoutes = require('./routes/cadastroRoutes');
+const recuperacaoSenhaRoutes = require('./routes/recuperacaoSenhaRoutes');
 
 
 const app = express();
@@ -35,6 +36,7 @@ app.use('/categoria', categoriaRoutes);
 app.use('/login', loginRoutes);
 app.use('/conta', contaRoutes);
 app.use('/cadastro', cadastroRoutes);
+app.use('/esqueci-senha', recuperacaoSenhaRoutes);
 
 
 

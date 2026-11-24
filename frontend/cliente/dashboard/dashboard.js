@@ -32,8 +32,37 @@ let unidades = [];
 let categoriaSelecionada = 'todas';
 let produtoSelecionado = null;
 let quantidadeSelecionada = 1;
-const carrinho = [];
-const extensoesImagem = { 1: 'jpeg', 2: 'jpeg', 3: 'jpeg', 4: 'png', 5: 'png', 6: 'jpeg', 7: 'jpeg', 8: 'png', 9: 'jpeg', 10: 'png', 11: 'jpeg', 12: 'png', 13: 'jpeg', 14: 'png', 15: 'png', 16: 'png', 17: 'jpeg', 18: 'jpeg', 19: 'jpeg', 20: 'jpeg', 21: 'png', 22: 'jpeg', 23: 'jpeg', 24: 'jpeg', 25: 'jpeg' };
+const CHAVE_CARRINHO = 'carrinhoParigot';
+let carrinho = carregarCarrinhoSalvo();
+
+function carregarCarrinhoSalvo() {
+    try {
+        const dados = JSON.parse(localStorage.getItem(CHAVE_CARRINHO) || '[]');
+        return Array.isArray(dados) ? dados : [];
+    } catch (erro) {
+        console.error('Erro ao recuperar carrinho:', erro);
+        return [];
+    }
+}
+
+function salvarCarrinhoSalvo() {
+    localStorage.setItem(CHAVE_CARRINHO, JSON.stringify(carrinho));
+}
+// O upload do admin sempre grava .jpeg; produtos antigos podem ter .png ou .jpg.
+const EXTENSOES_IMAGEM = ['jpeg', 'png', 'jpg'];
+const IMAGEM_PADRAO = '../../../imagens/silhueta.jpeg';
+
+// Chamada pelo onerror das imagens: tenta a próxima extensão e, por fim, a silhueta.
+function proximaImagem(img) {
+    const tentativa = Number(img.dataset.tentativa || 0) + 1;
+    if (!img.dataset.id || tentativa >= EXTENSOES_IMAGEM.length) {
+        img.onerror = null;
+        img.src = IMAGEM_PADRAO;
+        return;
+    }
+    img.dataset.tentativa = String(tentativa);
+    img.src = `${API}/imagens/${encodeURIComponent(img.dataset.id)}.${EXTENSOES_IMAGEM[tentativa]}`;
+}
 
 btnCategorias.addEventListener('click', () => {
     const aberto = btnCategorias.getAttribute('aria-expanded') === 'true';
@@ -135,9 +164,7 @@ function obterNomeUnidade(id) {
 }
 
 function obterImagem(produto) {
-    const id = encodeURIComponent(produto.id_produto);
-    const extensao = extensoesImagem[produto.id_produto] || 'jpeg';
-    return `${API}/imagens/${id}.${extensao}`;
+    return `${API}/imagens/${encodeURIComponent(produto.id_produto)}.${EXTENSOES_IMAGEM[0]}`;
 }
 
 function formatarPreco(valor) {
@@ -161,7 +188,7 @@ function renderizarProdutos() {
 
     gradeProdutos.innerHTML = filtrados.map(produto => `
         <button class="card-produto" type="button" data-produto="${escaparHTML(produto.id_produto)}" aria-label="Ver detalhes de ${escaparHTML(produto.nome_produto)}">
-            <span class="imagem-card"><img src="${obterImagem(produto)}" alt="${escaparHTML(produto.nome_produto)}" loading="lazy" onerror="this.onerror=null;this.src='../../../imagens/silhueta.jpeg'"></span>
+            <span class="imagem-card"><img src="${obterImagem(produto)}" data-id="${escaparHTML(produto.id_produto)}" alt="${escaparHTML(produto.nome_produto)}" loading="lazy" onerror="proximaImagem(this)"></span>
             <span class="informacoes-card">
                 <strong>${escaparHTML(produto.nome_produto)}</strong>
                 <span class="preco-card">${formatarPreco(produto.preco_unitario_produto)}</span>
@@ -181,7 +208,7 @@ function abrirDetalhes(id) {
     const p = produtoSelecionado;
     conteudoModalProduto.innerHTML = `
         <div class="detalhes-produto">
-            <div class="imagem-detalhe"><img src="${obterImagem(p)}" alt="${escaparHTML(p.nome_produto)}" onerror="this.onerror=null;this.src='../../../imagens/silhueta.jpeg'"></div>
+            <div class="imagem-detalhe"><img src="${obterImagem(p)}" data-id="${escaparHTML(p.id_produto)}" alt="${escaparHTML(p.nome_produto)}" onerror="proximaImagem(this)"></div>
             <div class="dados-detalhe">
                 <p class="categoria-detalhe">${escaparHTML(obterNomeCategoria(p.id_categoria))}</p>
                 <h2 id="modalNomeProduto">${escaparHTML(p.nome_produto)}</h2>
@@ -196,7 +223,8 @@ function abrirDetalhes(id) {
                         <button type="button" id="aumentarQuantidade" aria-label="Aumentar quantidade">+</button>
                     </div>
                 </div>
-                <button class="adicionar-carrinho" type="button" id="adicionarCarrinho">Adicionar ao carrinho</button>
+                <p class="categoria-detalhe">${estoqueDoProduto(p) > 0 ? `${estoqueDoProduto(p)} em estoque` : 'Produto sem estoque'}</p>
+                <button class="adicionar-carrinho" type="button" id="adicionarCarrinho" ${estoqueDoProduto(p) > 0 ? '' : 'disabled'}>${estoqueDoProduto(p) > 0 ? 'Adicionar ao carrinho' : 'Indisponível'}</button>
                 <p class="mensagem-carrinho" id="mensagemCarrinho" aria-live="polite"></p>
             </div>
         </div>
@@ -208,21 +236,66 @@ function abrirDetalhes(id) {
     document.getElementById('adicionarCarrinho').addEventListener('click', adicionarAoCarrinho);
 }
 
+function estoqueDoProduto(produto) {
+    const estoque = Number(produto?.quantidade_estoque_produto);
+    return Number.isFinite(estoque) ? Math.max(0, estoque) : 0;
+}
+
+// Quantas unidades ainda podem ser colocadas no carrinho (estoque − o que já está nele).
+function disponivelParaAdicionar(produto) {
+    const noCarrinho = carrinho.find(item => String(item.id_produto) === String(produto.id_produto));
+    return Math.max(0, estoqueDoProduto(produto) - (noCarrinho ? Number(noCarrinho.quantidade) : 0));
+}
+
 function alterarQuantidade(delta) {
-    quantidadeSelecionada = Math.max(1, quantidadeSelecionada + delta);
+    const limite = Math.max(1, disponivelParaAdicionar(produtoSelecionado));
+    quantidadeSelecionada = Math.min(limite, Math.max(1, quantidadeSelecionada + delta));
     document.getElementById('valorQuantidade').textContent = quantidadeSelecionada;
 }
 
 function adicionarAoCarrinho() {
+    const mensagemCarrinho = document.getElementById('mensagemCarrinho');
+    const disponivel = disponivelParaAdicionar(produtoSelecionado);
+
+    if (estoqueDoProduto(produtoSelecionado) <= 0) {
+        mensagemCarrinho.textContent = 'Produto sem estoque no momento.';
+        return;
+    }
+    if (disponivel <= 0) {
+        mensagemCarrinho.textContent = 'Você já colocou no carrinho todo o estoque disponível deste produto.';
+        return;
+    }
+
+    const quantidade = Math.min(quantidadeSelecionada, disponivel);
     const existente = carrinho.find(item => String(item.id_produto) === String(produtoSelecionado.id_produto));
-    if (existente) existente.quantidade += quantidadeSelecionada;
-    else carrinho.push({ id_produto: produtoSelecionado.id_produto, nome: produtoSelecionado.nome_produto, preco: Number(produtoSelecionado.preco_unitario_produto), quantidade: quantidadeSelecionada });
-    document.getElementById('mensagemCarrinho').textContent = 'Produto adicionado ao carrinho!';
+    if (existente) {
+        existente.quantidade += quantidade;
+        existente.estoque = estoqueDoProduto(produtoSelecionado);
+    } else carrinho.push({
+        id_produto: produtoSelecionado.id_produto,
+        nome: produtoSelecionado.nome_produto,
+        preco: Number(produtoSelecionado.preco_unitario_produto),
+        quantidade,
+        estoque: estoqueDoProduto(produtoSelecionado),
+        imagem: obterImagem(produtoSelecionado)
+    });
+    salvarCarrinhoSalvo();
+    mensagemCarrinho.textContent = quantidade < quantidadeSelecionada
+        ? `Adicionamos ${quantidade} unidade(s): é o máximo disponível em estoque.`
+        : 'Produto adicionado ao carrinho!';
+    quantidadeSelecionada = 1;
+    document.getElementById('valorQuantidade').textContent = quantidadeSelecionada;
 }
 
 function fecharModal() {
     modalProduto.hidden = true;
     document.body.classList.remove('modal-aberto');
+}
+
+// Datas do banco chegam como 'AAAA-MM-DD': formata sem passar por Date (evita voltar um dia).
+function formatarDataBR(valor) {
+    const partes = String(valor || '').slice(0, 10).split('-');
+    return partes.length === 3 && partes[0].length === 4 ? `${partes[2]}/${partes[1]}/${partes[0]}` : '-';
 }
 
 function escaparHTML(valor) {
@@ -243,19 +316,6 @@ carregarProdutos();
 
 const botaoPedidos = document.getElementById('botaoPedidos');
 const botaoDevolucoes = document.getElementById('botaoDevolucoes');
-
-function verificarLogin() {
-    const token = sessionStorage.getItem('token');
-    const perfil = sessionStorage.getItem('perfil');
-
-    if (!token || perfil !== 'cliente') {
-        alert('Faça o login primeiro!');
-        return false;
-    }
-
-    return true;
-}
-
 
 const secaoProdutos = document.querySelector('.secao-produtos');
 const secaoHistorico = document.getElementById('secaoHistorico');
@@ -321,9 +381,7 @@ async function carregarHistorico(tipo) {
                     #${registro.id_pedido || registro.id_devolucao}
                 </h3>
 
-                <p><strong>Data:</strong> ${new Date(
-                    registro.data_pedido || registro.data_devolucao
-                ).toLocaleDateString('pt-BR')}</p>
+                <p><strong>Data:</strong> ${formatarDataBR(registro.data_pedido || registro.data_devolucao)}</p>
 
                 ${tipo === 'devolucoes' ? `
                     <p><strong>Pedido relacionado:</strong> #${registro.pedido_id_pedido}</p>

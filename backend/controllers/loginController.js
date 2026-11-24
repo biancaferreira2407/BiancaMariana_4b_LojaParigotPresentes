@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 
 exports.login = async (req, res) => {
     try {
-        const { email_pessoa, senha_pessoa, perfil } = req.body;
+        const { senha_pessoa, perfil } = req.body;
+        const email_pessoa = String(req.body.email_pessoa || '').trim().toLowerCase();
 
         if (!email_pessoa || !senha_pessoa) {
             return res.status(400).json({
@@ -25,7 +26,7 @@ exports.login = async (req, res) => {
                 ON c.pessoa_cpf_pessoa = p.cpf_pessoa
              LEFT JOIN funcionario f
                 ON f.pessoa_cpf_pessoa = p.cpf_pessoa
-             WHERE p.email_pessoa = $1`,
+             WHERE LOWER(p.email_pessoa) = $1`,
             [email_pessoa]
         );
 

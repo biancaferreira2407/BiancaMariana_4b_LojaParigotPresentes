@@ -35,3 +35,15 @@ exports.exigirCliente = (req, res, next) => {
 
     next();
 };
+
+// Permite acessar as rotas administrativas somente com perfil de funcionário (admin).
+exports.exigirAdmin = (req, res, next) => {
+    if (!req.usuario || req.usuario.perfil !== 'admin') {
+        return res.status(403).json({
+            sucesso: false,
+            mensagem: 'Acesso restrito à administração da loja.'
+        });
+    }
+
+    next();
+};

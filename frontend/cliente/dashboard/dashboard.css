@@ -140,6 +140,7 @@ button {
 }
 
 .botao-carrinho {
+    text-decoration: none;
     min-width: 112px;
     min-height: 46px;
     display: inline-flex;

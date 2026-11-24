@@ -1,5 +1,11 @@
 const { pool } = require('../database');
 
+// Motivos aceitos. Somente "Pessoal" devolve o produto ao estoque
+// (no caso de "Defeito" o item não pode ser revendido).
+const MOTIVOS = { pessoal: 'Pessoal', defeito: 'Defeito' };
+const normalizarMotivo = valor => MOTIVOS[String(valor || '').trim().toLowerCase()] || null;
+const voltaAoEstoque = motivo => String(motivo || '').trim().toLowerCase() === 'pessoal';
+
 exports.listarDevolucoes = async (req, res) => {
     try {
         const result = await pool.query(`
@@ -65,10 +71,11 @@ exports.obterDevolucao = async (req, res) => {
 };
 
 exports.criarDevolucao = async (req, res) => {
-    const { pedido_id_pedido, data_devolucao, motivo_devolucao, produtos } = req.body;
+    const { pedido_id_pedido, data_devolucao, produtos } = req.body;
+    const motivo_devolucao = normalizarMotivo(req.body.motivo_devolucao);
     const pedidoId = Number(pedido_id_pedido);
-    if (!Number.isInteger(pedidoId) || pedidoId <= 0 || !data_devolucao || !motivo_devolucao?.trim())
-        return res.status(400).json({ sucesso: false, mensagem: 'Informe o pedido, a data e o motivo da devolução.' });
+    if (!Number.isInteger(pedidoId) || pedidoId <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(String(data_devolucao || '')) || !motivo_devolucao)
+        return res.status(400).json({ sucesso: false, mensagem: 'Informe o pedido, a data e o motivo da devolução (Pessoal ou Defeito).' });
     if (!Array.isArray(produtos) || produtos.length === 0)
         return res.status(400).json({ sucesso: false, mensagem: 'Selecione pelo menos um produto para devolver.' });
 
@@ -86,7 +93,7 @@ exports.criarDevolucao = async (req, res) => {
             INSERT INTO public.devolucoes
                 (pedido_id_pedido, data_devolucao, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa, motivo_devolucao)
             VALUES ($1, $2, $3, $4, $5) RETURNING *
-        `, [pedidoId, data_devolucao, pedido.rows[0].cliente_pessoa_cpf_pessoa, pedido.rows[0].funcionario_pessoa_cpf_pessoa, motivo_devolucao.trim()]);
+        `, [pedidoId, data_devolucao, pedido.rows[0].cliente_pessoa_cpf_pessoa, pedido.rows[0].funcionario_pessoa_cpf_pessoa, motivo_devolucao]);
 
         const devolucao = devolucaoResult.rows[0];
         const ids = new Set();
@@ -110,7 +117,7 @@ exports.criarDevolucao = async (req, res) => {
                 VALUES ($1, $2, $3, $4)`, [devolucao.id_devolucao, produtoId, quantidade, vendido.rows[0].preco_unitario]
             );
 
-            if (motivo_devolucao.trim().toLowerCase() === 'pessoal') {
+            if (voltaAoEstoque(motivo_devolucao)) {
                 await client.query(
                     `UPDATE public.produto
                     SET quantidade_estoque_produto = quantidade_estoque_produto + $1
@@ -122,7 +129,7 @@ exports.criarDevolucao = async (req, res) => {
         await client.query('COMMIT');
         res.status(201).json({ sucesso: true, mensagem: 'Devolução cadastrada com sucesso!', devolucao });
     } catch (error) {
-        await client.query('ROLLBACK');
+        await client.query('ROLLBACK').catch(() => {});
         console.error('Erro ao criar devolução:', error);
         res.status(400).json({ sucesso: false, mensagem: error.message || 'Não foi possível cadastrar a devolução.' });
     } finally { client.release(); }
@@ -130,17 +137,41 @@ exports.criarDevolucao = async (req, res) => {
 
 exports.atualizarDevolucao = async (req, res) => {
     const id = Number(req.params.id);
-    const { data_devolucao, motivo_devolucao } = req.body;
-    if (!Number.isInteger(id) || id <= 0 || !data_devolucao || !motivo_devolucao?.trim())
-        return res.status(400).json({ sucesso: false, mensagem: 'Informe uma data e um motivo válidos.' });
+    const { data_devolucao } = req.body;
+    const motivo = normalizarMotivo(req.body.motivo_devolucao);
+    if (!Number.isInteger(id) || id <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(String(data_devolucao || '')) || !motivo)
+        return res.status(400).json({ sucesso: false, mensagem: 'Informe uma data e um motivo válidos (Pessoal ou Defeito).' });
+
+    const client = await pool.connect();
     try {
-        const result = await pool.query(`UPDATE public.devolucoes SET data_devolucao = $1, motivo_devolucao = $2 WHERE id_devolucao = $3 RETURNING *`, [data_devolucao, motivo_devolucao.trim(), id]);
-        if (!result.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Devolução não encontrada.' });
+        await client.query('BEGIN');
+        const atual = await client.query('SELECT motivo_devolucao FROM public.devolucoes WHERE id_devolucao = $1 FOR UPDATE', [id]);
+        if (!atual.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ sucesso: false, mensagem: 'Devolução não encontrada.' });
+        }
+
+        // Se o motivo passou a (ou deixou de) devolver ao estoque, o estoque é ajustado.
+        const antes = voltaAoEstoque(atual.rows[0].motivo_devolucao);
+        const depois = voltaAoEstoque(motivo);
+        if (antes !== depois) {
+            const sinal = depois ? 1 : -1;
+            await client.query(`
+                UPDATE public.produto pr
+                SET quantidade_estoque_produto = GREATEST(0, pr.quantidade_estoque_produto + $2 * dhp.quantidade)
+                FROM public.devolucao_has_produto dhp
+                WHERE dhp.devolucao_id_devolucao = $1 AND dhp.produto_id_produto = pr.id_produto
+            `, [id, sinal]);
+        }
+
+        const result = await client.query('UPDATE public.devolucoes SET data_devolucao = $1, motivo_devolucao = $2 WHERE id_devolucao = $3 RETURNING *', [data_devolucao, motivo, id]);
+        await client.query('COMMIT');
         res.json({ sucesso: true, mensagem: 'Devolução atualizada com sucesso!', devolucao: result.rows[0] });
     } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
         console.error('Erro ao atualizar devolução:', error);
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao atualizar devolução.' });
-    }
+    } finally { client.release(); }
 };
 
 exports.excluirDevolucao = async (req, res) => {
@@ -149,20 +180,27 @@ exports.excluirDevolucao = async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        const itens = await client.query('SELECT produto_id_produto, quantidade FROM public.devolucao_has_produto WHERE devolucao_id_devolucao = $1', [id]);
-        if (!itens.rowCount) {
-            const existe = await client.query('SELECT 1 FROM public.devolucoes WHERE id_devolucao = $1', [id]);
-            if (!existe.rowCount) throw new Error('Devolução não encontrada.');
+        const devolucao = await client.query('SELECT motivo_devolucao FROM public.devolucoes WHERE id_devolucao = $1 FOR UPDATE', [id]);
+        if (!devolucao.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ sucesso: false, mensagem: 'Devolução não encontrada.' });
         }
-        for (const item of itens.rows) await client.query('UPDATE public.produto SET quantidade_estoque_produto = GREATEST(0, quantidade_estoque_produto - $1) WHERE id_produto = $2', [item.quantidade, item.produto_id_produto]);
+
+        // O estoque só foi acrescido na criação quando o motivo era "Pessoal";
+        // portanto só nesse caso ele é estornado (antes era estornado sempre).
+        const estornaEstoque = voltaAoEstoque(devolucao.rows[0].motivo_devolucao);
+        if (estornaEstoque) {
+            const itens = await client.query('SELECT produto_id_produto, quantidade FROM public.devolucao_has_produto WHERE devolucao_id_devolucao = $1', [id]);
+            for (const item of itens.rows) await client.query('UPDATE public.produto SET quantidade_estoque_produto = GREATEST(0, quantidade_estoque_produto - $1) WHERE id_produto = $2', [item.quantidade, item.produto_id_produto]);
+        }
         await client.query('DELETE FROM public.devolucao_has_produto WHERE devolucao_id_devolucao = $1', [id]);
-        const removida = await client.query('DELETE FROM public.devolucoes WHERE id_devolucao = $1 RETURNING id_devolucao', [id]);
-        if (!removida.rowCount) throw new Error('Devolução não encontrada.');
+        await client.query('DELETE FROM public.devolucoes WHERE id_devolucao = $1', [id]);
         await client.query('COMMIT');
-        res.json({ sucesso: true, mensagem: 'Devolução excluída. O estoque dos produtos foi ajustado.' });
+        res.json({ sucesso: true, mensagem: estornaEstoque ? 'Devolução excluída. O estoque dos produtos foi ajustado.' : 'Devolução excluída.' });
     } catch (error) {
-        await client.query('ROLLBACK');
-        res.status(400).json({ sucesso: false, mensagem: error.message || 'Erro ao excluir devolução.' });
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao excluir devolução:', error);
+        res.status(500).json({ sucesso: false, mensagem: 'Erro ao excluir devolução.' });
     } finally { client.release(); }
 };
 

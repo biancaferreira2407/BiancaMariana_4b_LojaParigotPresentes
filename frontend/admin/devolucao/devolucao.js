@@ -3,12 +3,18 @@ let devolucoes = [], pedidosDisponiveis = []
 let pedidoSelecionado = null, itensPedido = []
 let editando = null;
 const $ = (id) => document.getElementById(id);
+
+// Data de hoje no fuso local (toISOString usaria UTC e, à noite, daria o dia seguinte).
+function dataHoje() {
+    const h = new Date();
+    return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
+}
 const form = $('formDevolucao')
 const selectPedido = $('pedido')
 const produtosPedido = $('produtosPedido');
 
 window.addEventListener('DOMContentLoaded', async () => { 
-    $('data_devolucao').value = new Date().toISOString().slice(0, 10); 
+    $('data_devolucao').value = dataHoje(); 
     await Promise.all([carregarPedidos(), carregarDevolucoes()]); 
 });
 
@@ -123,7 +129,7 @@ async function salvarDevolucao(e) {
         
         limparSelecao(); 
         
-        $('data_devolucao').value = new Date().toISOString().slice(0, 10); 
+        $('data_devolucao').value = dataHoje(); 
         await Promise.all([carregarPedidos(), carregarDevolucoes()]); 
     }
     catch (err) { 
@@ -270,7 +276,7 @@ function cancelarEdicao() {
     
     limparSelecao(); 
     
-    $('data_devolucao').value = new Date().toISOString().slice(0, 10); 
+    $('data_devolucao').value = dataHoje(); 
 }
 
 function limparSelecao() { 

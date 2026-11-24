@@ -1,3 +1,9 @@
+-- SQL COMPLETO — PARIGOT PRESENTES
+-- ATENÇÃO: este script APAGA as tabelas listadas e recria tudo.
+-- Use somente para criar/recriar o banco. Faça backup antes.
+
+BEGIN;
+
 DROP TABLE IF EXISTS
     devolucao_has_produto,
     pagamento_has_forma_pagamento,
@@ -14,6 +20,7 @@ DROP TABLE IF EXISTS
     categoria,
     pessoa,
     tabelas_card_menu,
+    recuperacao_senha,
     cargo;
 
 CREATE TABLE cargo (
@@ -45,6 +52,10 @@ CREATE TABLE pessoa (
     senha_pessoa VARCHAR(50),
     email_pessoa VARCHAR(75)
 );
+
+
+-- E-mail único (sem diferenciar maiúsculas/minúsculas): o login usa o e-mail.
+CREATE UNIQUE INDEX ux_pessoa_email ON pessoa (LOWER(email_pessoa));
 
 
 CREATE TABLE cliente (
@@ -100,6 +111,9 @@ CREATE TABLE pedido (
     data_pedido date,
     cliente_pessoa_cpf_pessoa VARCHAR(20),
     funcionario_pessoa_cpf_pessoa VARCHAR(20),
+    entrega_ou_retirada varchar(50),
+    status_pedido varchar(100),
+    endereco_entrega TEXT,
     FOREIGN KEY (cliente_pessoa_cpf_pessoa) REFERENCES cliente(pessoa_cpf_pessoa),
     FOREIGN KEY (funcionario_pessoa_cpf_pessoa) REFERENCES funcionario(pessoa_cpf_pessoa)
 );
@@ -108,6 +122,7 @@ CREATE TABLE pedido (
 CREATE TABLE pedido_has_produto (
     produto_id_produto integer NOT NULL,
     pedido_id_pedido integer NOT NULL,
+    embrulhar VARCHAR(20),
     quantidade integer,
     preco_unitario double precision,
     FOREIGN KEY (pedido_id_pedido) REFERENCES pedido(id_pedido),
@@ -144,6 +159,11 @@ CREATE TABLE pagamento (
     pedido_id_pedido integer NOT NULL PRIMARY KEY,
     data_pagamento timestamp without time zone,
     valor_total_pagamento double precision,
+    subtotal_produtos NUMERIC(12,2),
+    juros_total NUMERIC(12,2),
+    taxa_entrega NUMERIC(12,2) NOT NULL DEFAULT 0,
+    taxa_embrulho NUMERIC(12,2) NOT NULL DEFAULT 0,
+    status_pagamento VARCHAR(40) NOT NULL DEFAULT 'Pendente',
     FOREIGN KEY (pedido_id_pedido) REFERENCES pedido(id_pedido)
 );
 
@@ -152,9 +172,28 @@ CREATE TABLE pagamento_has_forma_pagamento (
     pagamento_id_pedido integer NOT NULL,
     forma_pagamento_id_forma_pagamento integer NOT NULL,
     valor_pago double precision,
+    valor_previsto NUMERIC(12,2),
+    valor_principal NUMERIC(12,2),
+    percentual_juros NUMERIC(5,2) NOT NULL DEFAULT 0,
+    valor_juros NUMERIC(12,2) NOT NULL DEFAULT 0,
+    parcelas INTEGER,
+    precisa_troco BOOLEAN NOT NULL DEFAULT FALSE,
+    valor_troco NUMERIC(12,2),
     foreign key (pagamento_id_pedido) references pagamento(pedido_id_pedido),
     foreign key (forma_pagamento_id_forma_pagamento) references forma_pagamento(id_forma_pagamento)
 );
+
+
+CREATE TABLE recuperacao_senha (
+    email_pessoa VARCHAR(75) PRIMARY KEY,
+    codigo_hash VARCHAR(64),
+    token_hash VARCHAR(64),
+    expira_em TIMESTAMP NOT NULL,
+    solicitado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    verificado_em TIMESTAMP,
+    tentativas INTEGER NOT NULL DEFAULT 0
+);
+
 
 
 -- =========================================
@@ -332,18 +371,18 @@ VALUES
 -- =========================================
 
 INSERT INTO pedido
-(id_pedido, data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa)
+(id_pedido, data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa, status_pedido)
 VALUES
-(1, '2026-09-10', '33333333333', '92929292929'),
-(2, '2026-09-11', '22222222222', '66666666666'),
-(3, '2026-09-12', '12387980903', '55555555555'),
-(4, '2026-09-13', '12345678910', '88888888888'),
-(5, '2026-09-14', '99999999999', '12381980903'),
-(6, '2026-09-15', '10101010101', '92929292929'),
-(7, '2026-09-16', '44444444444', '66666666666'),
-(8, '2026-09-17', '55555555555', '55555555555'),
-(9, '2026-09-18', '66666666666', '88888888888'),
-(10, '2026-09-19', '88888888888', '12388899903');
+(1, '2026-09-10', '33333333333', '92929292929', 'concluído'),
+(2, '2026-09-11', '22222222222', '66666666666', 'concluído'),
+(3, '2026-09-12', '12387980903', '55555555555', 'concluído'),
+(4, '2026-09-13', '12345678910', '88888888888', 'concluído'),
+(5, '2026-09-14', '99999999999', '12381980903', 'concluído'),
+(6, '2026-09-15', '10101010101', '92929292929', 'concluído'),
+(7, '2026-09-16', '44444444444', '66666666666', 'concluído'),
+(8, '2026-09-17', '55555555555', '55555555555', 'concluído'),
+(9, '2026-09-18', '66666666666', '88888888888', 'concluído'),
+(10, '2026-09-19', '88888888888', '12388899903', 'em andamento');
 
 
 -- =========================================
@@ -462,3 +501,5 @@ SELECT setval(
     true
 )
 FROM public.pedido;
+
+COMMIT;

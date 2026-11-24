@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const cargoController = require('../controllers/cargoController');
+const { autenticar, exigirAdmin } = require('../middlewares/authMiddleware');
+
+// Todas as rotas de cargos são administrativas.
+router.use(autenticar, exigirAdmin);
 
 // Rotas do CRUD de Cargos
 router.get('/listar', cargoController.listarCargos);

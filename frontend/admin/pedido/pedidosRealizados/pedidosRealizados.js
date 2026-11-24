@@ -119,7 +119,7 @@ async function visualizarPedido(id) {
             ? pedido.pagamentos.map(item => `
                 <tr>
                     <td>${escapeHtml(item.nome_forma_pagamento)}</td>
-                    <td>${formatarMoeda(item.valor_pago)}</td>
+                    <td>${formatarMoeda(item.valor_pago ?? item.valor_previsto)}</td>
                 </tr>
             `).join('')
             : '<tr><td colspan="2" class="mensagem-vazia">Nenhum pagamento.</td></tr>';

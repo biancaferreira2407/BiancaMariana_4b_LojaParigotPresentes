@@ -26,8 +26,13 @@ document.getElementById('btnSalvar').addEventListener('click', salvarPedido);
 document.getElementById('btnCancelar').addEventListener('click', cancelarPedido);
 
 async function inicializar() {
+    // Data local (toISOString usaria UTC e, à noite, mostraria o dia seguinte no Brasil).
     const hoje = new Date();
-    dataPedido.value = hoje.toISOString().split('T')[0];
+    dataPedido.value = [
+        hoje.getFullYear(),
+        String(hoje.getMonth() + 1).padStart(2, '0'),
+        String(hoje.getDate()).padStart(2, '0')
+    ].join('-');
 
     try {
         await Promise.all([
@@ -49,6 +54,10 @@ function mostrarMensagem(texto, tipo = 'info') {
     setTimeout(() => {
         messageContainer.innerHTML = '';
     }, 3500);
+}
+
+function escapeHtml(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 function formatarMoeda(valor) {
@@ -196,7 +205,7 @@ function renderizarProdutos() {
         const row = document.createElement('tr');
 
         row.innerHTML = `
-            <td>${item.nome_produto}</td>
+            <td>${escapeHtml(item.nome_produto)}</td>
             <td>${item.quantidade}</td>
             <td>${formatarMoeda(item.preco_unitario)}</td>
             <td>${formatarMoeda(subtotal)}</td>
@@ -279,6 +288,11 @@ async function salvarPedido() {
         return;
     }
 
+    if (!clienteSelect.value) {
+        mostrarMensagem('Selecione o cliente do pedido.', 'warning');
+        return;
+    }
+
     if (itensPedido.length === 0) {
         mostrarMensagem('Adicione pelo menos um produto ao pedido.', 'warning');
         return;
@@ -310,7 +324,7 @@ async function salvarPedido() {
     btnSalvar.textContent = 'Salvando...';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/pedido`, {
+        const response = await fetch(`${API_BASE_URL}/pedido/admin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dadosPedido)

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Carrinho de compras da Parigot Presentes.">
+    <title>Meu carrinho | Parigot Presentes</title>
+    <link rel="stylesheet" href="carrinho.css">
+    <script src="carrinho.js" defer></script>
+</head>
+<body>
+    <header class="cabecalho-carrinho">
+        <a class="marca" href="../dashboard/dashboard.html" aria-label="Voltar para a loja">
+            <img src="../../../imagens/logo-parigot.png" alt="Logo Parigot Presentes">
+            <span>Parigot <strong>Presentes</strong></span>
+        </a>
+        <a class="voltar-loja" href="../dashboard/dashboard.html">
+            <span aria-hidden="true">←</span> Continuar comprando
+        </a>
+    </header>
+
+    <main class="conteudo-carrinho">
+        <div class="titulo-pagina">
+            <p class="chamada">SEUS ESCOLHIDOS</p>
+            <h1>Meu carrinho</h1>
+            <p>Confira seus produtos antes de continuar.</p>
+        </div>
+
+        <div class="layout-carrinho">
+            <section class="lista-carrinho" aria-label="Produtos no carrinho">
+                <div class="cabecalho-lista">
+                    <h2>Produtos adicionados</h2>
+                    <span id="quantidadeItens">0 itens</span>
+                </div>
+                <div id="itensCarrinho" aria-live="polite">
+                    <div class="carrinho-vazio">
+                        <span class="icone-vazio" aria-hidden="true">♡</span>
+                        <h2>Seu carrinho está vazio</h2>
+                        <p>Que tal encontrar algo especial para presentear?</p>
+                        <a class="botao-continuar" href="../dashboard/dashboard.html">Explorar produtos</a>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="resumo-carrinho" aria-labelledby="tituloResumo">
+                <h2 id="tituloResumo">Resumo do pedido</h2>
+                <div class="linha-resumo">
+                    <span>Subtotal</span>
+                    <strong id="subtotal">R$ 0,00</strong>
+                </div>
+                <div class="linha-resumo frete">
+                    <span>Entrega</span>
+                    <span>Calculada posteriormente</span>
+                </div>
+                <div class="linha-total">
+                    <span>Total parcial</span>
+                    <strong id="total">R$ 0,00</strong>
+                </div>
+                <button type="button" id="finalizarCompra" class="botao-finalizar" disabled>
+                    Finalizar compra <span aria-hidden="true">→</span>
+                </button>
+                <p class="aviso-finalizacao">A forma de pagamento será escolhida na próxima etapa.</p>
+                <div class="seguranca-carrinho">
+                    <span aria-hidden="true">♡</span>
+                    <p>Seus produtos ficam salvos neste navegador, mesmo que você ainda não esteja logado.</p>
+                </div>
+            </aside>
+        </div>
+    </main>
+    <footer class="rodape-carrinho">Parigot Presentes · Um presente especial em cada detalhe</footer>
+</body>
+</html>

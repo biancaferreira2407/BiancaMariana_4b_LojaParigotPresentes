@@ -50,10 +50,11 @@ exports.cadastrarCliente = async (req, res) => {
         const nome = String(nome_pessoa || '').trim();
         const endereco = String(endereco_pessoa || '').trim();
         const email = String(email_pessoa || '').trim().toLowerCase();
+        const senha = String(senha_pessoa || '');
 
         if (
             !cpf || !nome || !data_nascimento_pessoa ||
-            !endereco || !email || !senha_pessoa
+            !endereco || !email || !senha
         ) {
             return res.status(400).json({
                 sucesso: false,
@@ -82,7 +83,7 @@ exports.cadastrarCliente = async (req, res) => {
             });
         }
 
-        if (senha_pessoa.length < 8 || senha_pessoa.length > 50) {
+        if (senha.length < 8 || senha.length > 50) {
             return res.status(400).json({
                 sucesso: false,
                 mensagem: 'A senha deve ter entre 8 e 50 caracteres.'
@@ -114,9 +115,17 @@ exports.cadastrarCliente = async (req, res) => {
         }
 
 
+        // A partir daqui, as verificações e as duas inserções fazem parte
+        // da mesma transação: não pode existir pessoa sem o respectivo cliente.
+        await conexao.query('BEGIN');
+
+        const cpfExistente = await conexao.query(
+            'SELECT 1 FROM pessoa WHERE cpf_pessoa = $1',
+            [cpf]
+        );
+
         if (cpfExistente.rows.length > 0) {
             await conexao.query('ROLLBACK');
-
             return res.status(409).json({
                 sucesso: false,
                 mensagem: 'Este CPF já está cadastrado.'
@@ -153,7 +162,7 @@ exports.cadastrarCliente = async (req, res) => {
                 nome,
                 data_nascimento_pessoa,
                 endereco,
-                senha_pessoa,
+                senha,
                 email
             ]
         );
@@ -176,7 +185,7 @@ exports.cadastrarCliente = async (req, res) => {
         });
 
     } catch (error) {
-        await conexao.query('ROLLBACK');
+        await conexao.query('ROLLBACK').catch(() => {});
 
         console.error('Erro ao cadastrar cliente:', error);
 

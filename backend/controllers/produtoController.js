@@ -39,8 +39,17 @@ exports.criarProduto = async (req, res) => {
     try {
         const { id_produto, nome_produto, id_unidade_medida, quantidade_estoque_produto, preco_unitario_produto, id_categoria } = req.body;
 
-        if (!nome_produto) {
+        const idNumerico = Number(id_produto);
+        if (!Number.isInteger(idNumerico) || idNumerico <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: 'O ID do produto deve ser um número inteiro positivo.' });
+        }
+
+        if (!String(nome_produto || '').trim()) {
             return res.status(400).json({ sucesso: false, mensagem: 'O nome do produto é obrigatório.' });
+        }
+
+        if (Number(preco_unitario_produto) < 0 || Number(quantidade_estoque_produto) < 0) {
+            return res.status(400).json({ sucesso: false, mensagem: 'Preço e estoque não podem ser negativos.' });
         }
 
         const sql = `
@@ -50,8 +59,8 @@ exports.criarProduto = async (req, res) => {
         `;
 
         const values = [
-            id_produto,
-            nome_produto,
+            idNumerico,
+            String(nome_produto).trim(),
             id_unidade_medida || null,
             quantidade_estoque_produto || 0,
             preco_unitario_produto || 0.0,
@@ -62,6 +71,9 @@ exports.criarProduto = async (req, res) => {
         res.status(201).json({ sucesso: true, mensagem: 'Produto inserido com sucesso!', produto: result.rows[0] });
     } catch (error) {
         console.error('Erro ao criar produto:', error);
+        if (error.code === '23505') {
+            return res.status(400).json({ sucesso: false, mensagem: 'Já existe um produto com este ID.' });
+        }
         if (error.code === '23503') {
             return res.status(400).json({ sucesso: false, mensagem: 'A unidade de medida ou categoria informada não existe no cadastro.' });
         }
@@ -75,6 +87,16 @@ exports.atualizarProduto = async (req, res) => {
         const id = parseInt(req.params.id, 10);
         const { nome_produto, id_unidade_medida, quantidade_estoque_produto, preco_unitario_produto, id_categoria } = req.body;
 
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
+        }
+        if (!String(nome_produto || '').trim()) {
+            return res.status(400).json({ sucesso: false, mensagem: 'O nome do produto é obrigatório.' });
+        }
+        if (Number(preco_unitario_produto) < 0 || Number(quantidade_estoque_produto) < 0) {
+            return res.status(400).json({ sucesso: false, mensagem: 'Preço e estoque não podem ser negativos.' });
+        }
+
         const sql = `
             UPDATE public.produto 
             SET nome_produto = $1, 
@@ -87,7 +109,7 @@ exports.atualizarProduto = async (req, res) => {
         `;
 
         const values = [
-            nome_produto,
+            String(nome_produto).trim(),
             id_unidade_medida || null,
             quantidade_estoque_produto || 0,
             preco_unitario_produto || 0.0,
@@ -114,7 +136,11 @@ exports.atualizarProduto = async (req, res) => {
 // Upload e salvamento de imagem com Sharp
 exports.uploadImagem = async (req, res) => {
     try {
-        const id = req.params.id;
+        // O ID entra no nome do arquivo: precisa ser um inteiro (evita caminhos como ../../).
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: 'ID de produto inválido.' });
+        }
         if (!req.file) {
             return res.status(400).json({ sucesso: false, mensagem: 'Nenhum arquivo enviado.' });
         }
@@ -153,8 +179,14 @@ exports.uploadImagem = async (req, res) => {
 exports.deletarProduto = async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: 'ID inválido.' });
+        }
 
-        await query('DELETE FROM public.produto WHERE id_produto = $1', [id]);
+        const removido = await query('DELETE FROM public.produto WHERE id_produto = $1 RETURNING id_produto', [id]);
+        if (!removido.rowCount) {
+            return res.status(404).json({ sucesso: false, mensagem: 'Produto não encontrado.' });
+        }
 
         const pastaImagens = path.join(__dirname, '../../imagens');
         for (const extensao of ['png', 'jpg', 'jpeg']) {
@@ -167,6 +199,9 @@ exports.deletarProduto = async (req, res) => {
         res.json({ sucesso: true, mensagem: 'Produto excluído com sucesso!' });
     } catch (error) {
         console.error('Erro ao deletar produto:', error);
+        if (error.code === '23503') {
+            return res.status(409).json({ sucesso: false, mensagem: 'Não é possível excluir: o produto já faz parte de pedidos ou devoluções.' });
+        }
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao excluir produto.' });
     }
 };

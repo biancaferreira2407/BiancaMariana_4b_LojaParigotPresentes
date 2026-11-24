@@ -1,12 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const unidadeMedidaController = require('../controllers/unidadeMedidaController');
+const { autenticar, exigirAdmin } = require('../middlewares/authMiddleware');
 
-// Rotas do CRUD de Unidades de Medida
+// Listagem pública: a vitrine mostra a unidade de medida dos produtos.
 router.get('/listar', unidadeMedidaController.listarUnidadesMedida);
-router.get('/:id', unidadeMedidaController.obterUnidadeMedida);
-router.post('/', unidadeMedidaController.criarUnidadeMedida);
-router.put('/:id', unidadeMedidaController.atualizarUnidadeMedida);
-router.delete('/:id', unidadeMedidaController.deletarUnidadeMedida);
+
+// Demais operações do CRUD: somente administração.
+router.get('/:id', autenticar, exigirAdmin, unidadeMedidaController.obterUnidadeMedida);
+router.post('/', autenticar, exigirAdmin, unidadeMedidaController.criarUnidadeMedida);
+router.put('/:id', autenticar, exigirAdmin, unidadeMedidaController.atualizarUnidadeMedida);
+router.delete('/:id', autenticar, exigirAdmin, unidadeMedidaController.deletarUnidadeMedida);
 
 module.exports = router;

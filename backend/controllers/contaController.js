@@ -44,12 +44,16 @@ exports.atualizarMinhaConta = async (req, res) => {
         }
 
         const nome = typeof nome_pessoa === 'string' ? nome_pessoa.trim() : '';
-        const email = typeof email_pessoa === 'string' ? email_pessoa.trim() : '';
+        const email = typeof email_pessoa === 'string' ? email_pessoa.trim().toLowerCase() : '';
         const endereco = typeof endereco_pessoa === 'string' ? endereco_pessoa.trim() : '';
         const nascimento = data_nascimento_pessoa || null;
 
         if (!nome || !email || !endereco) {
             return res.status(400).json({ sucesso: false, mensagem: 'Nome, e-mail e endereço são obrigatórios.' });
+        }
+
+        if (nome.length > 60 || endereco.length > 150 || email.length > 75) {
+            return res.status(400).json({ sucesso: false, mensagem: 'Um ou mais campos ultrapassaram o limite permitido.' });
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,6 +78,15 @@ exports.atualizarMinhaConta = async (req, res) => {
         // mantém compatibilidade com o cadastro existente.
         if (pessoaAtual.rows[0].senha_pessoa !== senha_atual) {
             return res.status(401).json({ sucesso: false, mensagem: 'Senha atual incorreta.' });
+        }
+
+        // O banco antigo não tinha UNIQUE no e-mail: confere aqui para não duplicar.
+        const emailEmUso = await query(
+            'SELECT 1 FROM pessoa WHERE LOWER(email_pessoa) = $1 AND cpf_pessoa <> $2',
+            [email, cpf]
+        );
+        if (emailEmUso.rows.length > 0) {
+            return res.status(409).json({ sucesso: false, mensagem: 'Este e-mail já está cadastrado em outra conta.' });
         }
 
         const resultado = await query(

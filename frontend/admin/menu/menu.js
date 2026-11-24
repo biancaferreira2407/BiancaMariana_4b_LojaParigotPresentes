@@ -22,3 +22,7 @@ if (btnPedidos && submenuPedidos) {
         btnPedidos.classList.toggle('aberto');
     });
 }
+
+
+const btnSair = document.getElementById('btnSair');
+if (btnSair) btnSair.addEventListener('click', () => window.sairDoAdmin && window.sairDoAdmin());
