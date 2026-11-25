@@ -150,7 +150,7 @@ exports.criarPedido = async (req, res) => {
 
         const pedidoResult = await client.query(
             `INSERT INTO public.pedido (data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa, entrega_ou_retirada, status_pedido, endereco_entrega)
-             VALUES (CURRENT_DATE, $1, NULL, $2, 'Aguardando confirmação', $3) RETURNING *`,
+             VALUES (CURRENT_DATE, $1, NULL, $2, 'Não confirmado', $3) RETURNING *`,
             [req.usuario.cpf, preferencias.recebimento, preferencias.enderecoEntrega]
         );
         const pedido = pedidoResult.rows[0];
@@ -164,7 +164,7 @@ exports.criarPedido = async (req, res) => {
         }
         await client.query(
             `INSERT INTO public.pagamento (pedido_id_pedido, data_pagamento, valor_total_pagamento, subtotal_produtos, taxa_entrega, taxa_embrulho, juros_total, status_pagamento)
-             VALUES ($1, NULL, $2, $3, $4, $5, $6, 'Pendente')`,
+             VALUES ($1, NULL, $2, $3, $4, $5, $6, 'Não confirmado')`,
             [pedido.id_pedido, reais(pagamento.total_centavos), reais(dados.subtotal_centavos), reais(taxas.taxa_entrega_centavos), reais(taxas.taxa_embrulho_centavos), reais(pagamento.juros_total_centavos)]
         );
         for (const p of pagamento.pagamentos) {
@@ -228,7 +228,7 @@ exports.criarPedidoAdmin = async (req, res) => {
 
         const pedidoResult = await client.query(
             `INSERT INTO public.pedido (data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa, entrega_ou_retirada, status_pedido, endereco_entrega)
-             VALUES ($1, $2, $3, 'retirada', 'concluído', NULL) RETURNING *`,
+             VALUES ($1, $2, $3, 'retirada', 'Entregue', NULL) RETURNING *`,
             [data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa || null]
         );
         const pedido = pedidoResult.rows[0];
@@ -244,7 +244,7 @@ exports.criarPedidoAdmin = async (req, res) => {
 
         await client.query(
             `INSERT INTO public.pagamento (pedido_id_pedido, data_pagamento, valor_total_pagamento, subtotal_produtos, taxa_entrega, taxa_embrulho, juros_total, status_pagamento)
-             VALUES ($1, NOW(), $2, $3, 0, 0, 0, 'Pago')`,
+             VALUES ($1, NOW(), $2, $3, 0, 0, 0, 'Confirmado')`,
             [pedido.id_pedido, reais(dados.subtotal_centavos), reais(dados.subtotal_centavos)]
         );
         for (const f of formas) {
@@ -281,7 +281,8 @@ exports.listarPedidos = async (req, res) => {
                 pg.subtotal_produtos,
                 pg.taxa_entrega,
                 pg.taxa_embrulho,
-                pg.juros_total
+                pg.juros_total,
+                pg.status_pagamento
             FROM public.pedido p
             LEFT JOIN public.pessoa pc
                 ON pc.cpf_pessoa = p.cliente_pessoa_cpf_pessoa
@@ -320,7 +321,8 @@ exports.obterPedido = async (req, res) => {
                 pg.subtotal_produtos,
                 pg.taxa_entrega,
                 pg.taxa_embrulho,
-                pg.juros_total
+                pg.juros_total,
+                pg.status_pagamento
             FROM public.pedido p
             LEFT JOIN public.pessoa pc
                 ON pc.cpf_pessoa = p.cliente_pessoa_cpf_pessoa
@@ -429,4 +431,169 @@ exports.listarPedidosCliente = async (req, res) => {
             mensagem: 'Erro ao carregar seus pedidos.'
         });
     }
+};
+
+// O cliente informa que fez o pagamento ("Concluir pedido"). Gera a notificação
+// para a administração conferir. O pedido e o pagamento continuam "Não confirmado".
+exports.avisarPagamento = async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ sucesso: false, mensagem: 'ID do pedido inválido.' });
+    }
+    try {
+        const pedido = await pool.query(
+            `SELECT p.id_pedido, pg.status_pagamento
+             FROM public.pedido p
+             LEFT JOIN public.pagamento pg ON pg.pedido_id_pedido = p.id_pedido
+             WHERE p.id_pedido = $1 AND p.cliente_pessoa_cpf_pessoa = $2`,
+            [id, req.usuario.cpf]
+        );
+        if (!pedido.rowCount) {
+            return res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado.' });
+        }
+        if (pedido.rows[0].status_pagamento !== 'Não confirmado') {
+            return res.json({ sucesso: true, mensagem: 'Este pagamento já foi analisado pela loja.' });
+        }
+        // Índice único (pedido, tipo): avisar duas vezes não duplica a notificação.
+        await pool.query(
+            `INSERT INTO public.notificacao_admin (pedido_id_pedido, tipo)
+             VALUES ($1, 'pagamento_a_verificar')
+             ON CONFLICT (pedido_id_pedido, tipo) DO NOTHING`,
+            [id]
+        );
+        return res.json({ sucesso: true, mensagem: 'A loja foi avisada e vai conferir o seu pagamento.' });
+    } catch (error) {
+        console.error('Erro ao avisar pagamento:', error);
+        return res.status(500).json({ sucesso: false, mensagem: 'Não foi possível avisar a loja. Tente novamente.' });
+    }
+};
+
+const STATUS_PAGAMENTO_CONFIRMADO = ['Confirmado', 'Pago']; // "Pago" = pedidos antigos do balcão
+const STATUS_PEDIDO_PERMITIDOS = ['Em andamento', 'Entregando', 'Entregue'];
+
+// Admin confirma que conferiu o pagamento. O pagamento vira "Confirmado" e o pedido
+// passa a "Em andamento" (a partir daí o admin escolhe: Entregando / Entregue).
+exports.confirmarPagamento = async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ sucesso: false, mensagem: 'ID do pedido inválido.' });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const atual = await client.query(
+            `SELECT pg.status_pagamento
+             FROM public.pedido p
+             INNER JOIN public.pagamento pg ON pg.pedido_id_pedido = p.id_pedido
+             WHERE p.id_pedido = $1 FOR UPDATE OF pg, p`, [id]
+        );
+        if (!atual.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado.' });
+        }
+        if (STATUS_PAGAMENTO_CONFIRMADO.includes(atual.rows[0].status_pagamento)) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ sucesso: false, mensagem: 'O pagamento deste pedido já está confirmado.' });
+        }
+        await client.query(`UPDATE public.pagamento SET status_pagamento = 'Confirmado', data_pagamento = NOW() WHERE pedido_id_pedido = $1`, [id]);
+        // O que estava "previsto" passa a ser o valor efetivamente pago.
+        await client.query(
+            `UPDATE public.pagamento_has_forma_pagamento
+             SET valor_pago = valor_previsto
+             WHERE pagamento_id_pedido = $1 AND valor_pago IS NULL`, [id]
+        );
+        // Registra quem confirmou (se o admin logado for funcionário) sem apagar um funcionário já gravado.
+        await client.query(
+            `UPDATE public.pedido
+             SET status_pedido = 'Em andamento',
+                 funcionario_pessoa_cpf_pessoa = COALESCE(
+                     (SELECT pessoa_cpf_pessoa FROM public.funcionario WHERE pessoa_cpf_pessoa = $2),
+                     funcionario_pessoa_cpf_pessoa)
+             WHERE id_pedido = $1`, [id, req.usuario.cpf]
+        );
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao confirmar pagamento:', error);
+        return res.status(500).json({ sucesso: false, mensagem: 'Não foi possível confirmar o pagamento.' });
+    } finally { client.release(); }
+
+    // A notificação deste pedido já foi tratada: marca como lida (não impede a confirmação se falhar).
+    try {
+        await pool.query(`UPDATE public.notificacao_admin SET lida = TRUE, lida_em = CURRENT_TIMESTAMP WHERE pedido_id_pedido = $1 AND lida = FALSE`, [id]);
+    } catch (error) { console.error('Aviso: não foi possível marcar a notificação como lida:', error.message); }
+
+    return res.json({ sucesso: true, mensagem: 'Pagamento confirmado. O pedido está em andamento.' });
+};
+
+// Admin altera o andamento do pedido (somente com o pagamento confirmado).
+exports.atualizarStatusPedido = async (req, res) => {
+    const id = Number(req.params.id);
+    const status = String(req.body.status_pedido || '').trim();
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ sucesso: false, mensagem: 'ID do pedido inválido.' });
+    }
+    if (!STATUS_PEDIDO_PERMITIDOS.includes(status)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Status inválido. Use: Em andamento, Entregando ou Entregue.' });
+    }
+    try {
+        const atual = await pool.query(
+            `SELECT pg.status_pagamento
+             FROM public.pedido p
+             LEFT JOIN public.pagamento pg ON pg.pedido_id_pedido = p.id_pedido
+             WHERE p.id_pedido = $1`, [id]
+        );
+        if (!atual.rowCount) return res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado.' });
+        if (!STATUS_PAGAMENTO_CONFIRMADO.includes(atual.rows[0].status_pagamento)) {
+            return res.status(409).json({ sucesso: false, mensagem: 'Confirme o pagamento antes de alterar o status do pedido.' });
+        }
+        await pool.query('UPDATE public.pedido SET status_pedido = $1 WHERE id_pedido = $2', [status, id]);
+        return res.json({ sucesso: true, mensagem: `Pedido #${id} marcado como "${status}".`, status_pedido: status });
+    } catch (error) {
+        console.error('Erro ao atualizar status do pedido:', error);
+        return res.status(500).json({ sucesso: false, mensagem: 'Não foi possível atualizar o status do pedido.' });
+    }
+};
+
+// Admin desfaz uma confirmação feita por engano: pagamento e pedido voltam a "Não confirmado".
+// Não permite desfazer pedido já "Entregue" (primeiro volte o status para Entregando/Em andamento).
+exports.desfazerConfirmacaoPagamento = async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ sucesso: false, mensagem: 'ID do pedido inválido.' });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const atual = await client.query(
+            `SELECT pg.status_pagamento, p.status_pedido
+             FROM public.pedido p
+             INNER JOIN public.pagamento pg ON pg.pedido_id_pedido = p.id_pedido
+             WHERE p.id_pedido = $1 FOR UPDATE OF pg, p`, [id]
+        );
+        if (!atual.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado.' });
+        }
+        const { status_pagamento, status_pedido } = atual.rows[0];
+        if (!STATUS_PAGAMENTO_CONFIRMADO.includes(status_pagamento)) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ sucesso: false, mensagem: 'O pagamento deste pedido não está confirmado.' });
+        }
+        const entregue = ['entregue', 'concluido', 'concluído'].includes(String(status_pedido || '').toLowerCase());
+        if (entregue) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ sucesso: false, mensagem: 'Este pedido já foi entregue. Altere o status para "Entregando" ou "Em andamento" antes de desfazer a confirmação.' });
+        }
+        await client.query(`UPDATE public.pagamento SET status_pagamento = 'Não confirmado', data_pagamento = NULL WHERE pedido_id_pedido = $1`, [id]);
+        // Sem confirmação não há valor efetivamente pago (o valor previsto continua guardado).
+        await client.query(`UPDATE public.pagamento_has_forma_pagamento SET valor_pago = NULL WHERE pagamento_id_pedido = $1`, [id]);
+        await client.query(`UPDATE public.pedido SET status_pedido = 'Não confirmado' WHERE id_pedido = $1`, [id]);
+        await client.query('COMMIT');
+        return res.json({ sucesso: true, mensagem: 'Confirmação desfeita. O pedido voltou para "Pagamento não confirmado".' });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao desfazer confirmação:', error);
+        return res.status(500).json({ sucesso: false, mensagem: 'Não foi possível desfazer a confirmação.' });
+    } finally { client.release(); }
 };

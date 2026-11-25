@@ -154,6 +154,8 @@ main.container-master {
     font-weight: 600;
     transition: .2s;
 }
+.submenu-pedidos a:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
 .submenu-pedidos a:hover {
     background: linear-gradient(135deg, #fff0f7, #f1edfb);
     transform: translateY(-2px);

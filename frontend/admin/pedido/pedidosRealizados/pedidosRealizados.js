@@ -130,6 +130,8 @@ async function visualizarPedido(id) {
                 <div class="dado"><strong>Funcionário:</strong> ${escapeHtml(pedido.nome_funcionario || 'Não informado')}</div>
                 <div class="dado"><strong>Data:</strong> ${formatarData(pedido.data_pedido)}</div>
                 <div class="dado"><strong>Total:</strong> ${formatarMoeda(pedido.valor_total)}</div>
+                <div class="dado"><strong>Status do pedido:</strong> ${escapeHtml(pedido.status_pedido || '-')}</div>
+                <div class="dado"><strong>Status do pagamento:</strong> ${escapeHtml(pedido.status_pagamento || '-')}</div>
             </div>
 
             <div class="bloco-detalhes">

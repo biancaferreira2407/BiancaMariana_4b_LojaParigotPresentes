@@ -10,10 +10,14 @@ router.get('/endereco-cliente', autenticarCliente, pedidoController.obterEnderec
 router.post('/validar-carrinho', pedidoController.validarCarrinho);
 router.post('/validar-pagamento', autenticarCliente, pedidoController.validarPagamento);
 router.post('/', autenticarCliente, pedidoController.criarPedido);
+router.post('/:id/avisar-pagamento', autenticarCliente, pedidoController.avisarPagamento);
 
 // Área administrativa
 router.post('/admin', autenticar, exigirAdmin, pedidoController.criarPedidoAdmin);
 router.get('/', autenticar, exigirAdmin, pedidoController.listarPedidos);
 router.get('/:id', autenticar, exigirAdmin, pedidoController.obterPedido);
+router.patch('/:id/confirmar-pagamento', autenticar, exigirAdmin, pedidoController.confirmarPagamento);
+router.patch('/:id/status', autenticar, exigirAdmin, pedidoController.atualizarStatusPedido);
+router.patch('/:id/desfazer-confirmacao', autenticar, exigirAdmin, pedidoController.desfazerConfirmacaoPagamento);
 
 module.exports = router;

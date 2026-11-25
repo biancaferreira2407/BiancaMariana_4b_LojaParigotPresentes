@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <script src="../../auth-admin.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Pedidos - Parigot Presentes</title>
+    <link rel="stylesheet" href="../../tema-crud.css">
+    <link rel="stylesheet" href="./gerenciarPedidos.css">
+</head>
+<body>
+    <header>
+        <a href="../../menu/menu.html" class="btn-voltar-menu">← Voltar ao Menu</a>
+        <h1>Gerenciar Pedidos</h1>
+        <p>Confirme os pagamentos e acompanhe a entrega de cada pedido.</p>
+    </header>
+
+    <main>
+        <section class="list-section">
+            <h2>Pedidos</h2>
+
+            <div class="gp-abas" role="tablist" aria-label="Status do pagamento">
+                <button type="button" class="gp-aba gp-ativa" id="abaNaoConfirmado" role="tab" aria-selected="true" data-aba="nao_confirmado">
+                    Pagamento não confirmado <span class="gp-contador" id="contNaoConfirmado">0</span>
+                </button>
+                <button type="button" class="gp-aba" id="abaConfirmado" role="tab" aria-selected="false" data-aba="confirmado">
+                    Pagamento confirmado <span class="gp-contador" id="contConfirmado">0</span>
+                </button>
+            </div>
+
+            <div class="gp-filtros">
+                <div class="gp-campo">
+                    <label for="buscar">Buscar:</label>
+                    <input type="text" id="buscar" placeholder="ID, cliente ou data...">
+                </div>
+                <div class="gp-campo" id="campoFiltroStatus" hidden>
+                    <label for="filtroStatus">Status do pedido:</label>
+                    <select id="filtroStatus">
+                        <option value="">Todos</option>
+                        <option value="Em andamento">Em andamento</option>
+                        <option value="Entregando">Entregando</option>
+                        <option value="Entregue">Entregue</option>
+                    </select>
+                </div>
+                <button type="button" id="btnLimpar" class="btn-secondary">Limpar</button>
+            </div>
+
+            <p id="mensagem" class="gp-msg" role="status" aria-live="polite"></p>
+
+            <div class="table-container">
+                <table>
+                    <thead id="tabelaCabecalho"></thead>
+                    <tbody id="tabelaCorpo"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Sistema Parigot Presentes. Todos os direitos reservados.</p><br>
+        <p>NOME: Bianca Mariana Reis Ferreira  TURMA:M32 ANO: 2026</p>
+    </footer>
+
+    <div id="modalDetalhes" class="gp-modal" aria-hidden="true">
+        <div class="gp-modal-conteudo" role="dialog" aria-modal="true" aria-labelledby="tituloDetalhes">
+            <div class="gp-modal-topo">
+                <h2 id="tituloDetalhes">Pedido</h2>
+                <button type="button" id="btnFecharModal" class="gp-fechar" aria-label="Fechar">&times;</button>
+            </div>
+            <div id="detalhesPedido" class="gp-detalhes"></div>
+        </div>
+    </div>
+
+    <script src="./gerenciarPedidos.js" defer></script>
+    <script src="../../notificacoes.js" defer></script>
+</body>
+</html>

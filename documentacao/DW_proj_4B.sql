@@ -1,10 +1,30 @@
--- SQL COMPLETO — PARIGOT PRESENTES
--- ATENÇÃO: este script APAGA as tabelas listadas e recria tudo.
--- Use somente para criar/recriar o banco. Faça backup antes.
+-- =====================================================================
+-- BANCO COMPLETO — PARIGOT PRESENTES   (script único para um banco NOVO)
+-- =====================================================================
+-- Reúne em um só arquivo:
+--   * DW_proj_4B.sql                 (estrutura + dados de exemplo)
+--   * migracao_notificacao_admin.sql (tabela notificacao_admin + índice único
+--                                     + status padrão "Não confirmado")
+--   * migracao_status_pedidos.sql    (status padronizados: pagamento
+--                                     Não confirmado/Confirmado; pedido
+--                                     Não confirmado/Em andamento/Entregando/Entregue)
+-- As migrações NÃO precisam mais ser rodadas: elas servem só para bancos antigos.
+--
+-- COMO USAR (banco novo)
+--   1) Crie o banco, FORA deste script (CREATE DATABASE não roda dentro de transação):
+--        CREATE DATABASE parigot_presentes;
+--      (no pgAdmin: botão direito em "Databases" > Create > Database)
+--   2) Conecte-se ao banco criado e execute este arquivo inteiro.
+--   3) Em backend/.env use DB_NAME=parigot_presentes (ou o nome que você escolheu).
+--
+-- ATENÇÃO: este script APAGA as tabelas listadas abaixo e recria tudo.
+-- Não rode em um banco que já tenha dados que você quer manter.
+-- =====================================================================
 
 BEGIN;
 
 DROP TABLE IF EXISTS
+    notificacao_admin,
     devolucao_has_produto,
     pagamento_has_forma_pagamento,
     pedido_has_produto,
@@ -113,6 +133,7 @@ CREATE TABLE pedido (
     funcionario_pessoa_cpf_pessoa VARCHAR(20),
     entrega_ou_retirada varchar(50),
     status_pedido varchar(100),
+    status_pagamento varchar(100),
     endereco_entrega TEXT,
     FOREIGN KEY (cliente_pessoa_cpf_pessoa) REFERENCES cliente(pessoa_cpf_pessoa),
     FOREIGN KEY (funcionario_pessoa_cpf_pessoa) REFERENCES funcionario(pessoa_cpf_pessoa)
@@ -163,7 +184,7 @@ CREATE TABLE pagamento (
     juros_total NUMERIC(12,2),
     taxa_entrega NUMERIC(12,2) NOT NULL DEFAULT 0,
     taxa_embrulho NUMERIC(12,2) NOT NULL DEFAULT 0,
-    status_pagamento VARCHAR(40) NOT NULL DEFAULT 'Pendente',
+    status_pagamento VARCHAR(40) NOT NULL DEFAULT 'Não confirmado',
     FOREIGN KEY (pedido_id_pedido) REFERENCES pedido(id_pedido)
 );
 
@@ -182,6 +203,22 @@ CREATE TABLE pagamento_has_forma_pagamento (
     foreign key (pagamento_id_pedido) references pagamento(pedido_id_pedido),
     foreign key (forma_pagamento_id_forma_pagamento) references forma_pagamento(id_forma_pagamento)
 );
+
+
+-- Notificações para a administração conferir pagamentos (criada quando o cliente
+-- conclui o pedido). A tela do admin lê esta tabela.
+CREATE TABLE notificacao_admin (
+    id_notificacao SERIAL PRIMARY KEY,
+    pedido_id_pedido INTEGER NOT NULL,
+    tipo VARCHAR(40) NOT NULL DEFAULT 'pagamento_a_verificar',
+    criada_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    lida BOOLEAN NOT NULL DEFAULT FALSE,
+    lida_em TIMESTAMP,
+    FOREIGN KEY (pedido_id_pedido) REFERENCES pedido(id_pedido)
+);
+
+
+CREATE UNIQUE INDEX ux_notificacao_pedido_tipo ON notificacao_admin (pedido_id_pedido, tipo);
 
 
 CREATE TABLE recuperacao_senha (
@@ -373,16 +410,16 @@ VALUES
 INSERT INTO pedido
 (id_pedido, data_pedido, cliente_pessoa_cpf_pessoa, funcionario_pessoa_cpf_pessoa, status_pedido)
 VALUES
-(1, '2026-09-10', '33333333333', '92929292929', 'concluído'),
-(2, '2026-09-11', '22222222222', '66666666666', 'concluído'),
-(3, '2026-09-12', '12387980903', '55555555555', 'concluído'),
-(4, '2026-09-13', '12345678910', '88888888888', 'concluído'),
-(5, '2026-09-14', '99999999999', '12381980903', 'concluído'),
-(6, '2026-09-15', '10101010101', '92929292929', 'concluído'),
-(7, '2026-09-16', '44444444444', '66666666666', 'concluído'),
-(8, '2026-09-17', '55555555555', '55555555555', 'concluído'),
-(9, '2026-09-18', '66666666666', '88888888888', 'concluído'),
-(10, '2026-09-19', '88888888888', '12388899903', 'em andamento');
+(1, '2026-09-10', '33333333333', '92929292929', 'Entregue'),
+(2, '2026-09-11', '22222222222', '66666666666', 'Entregue'),
+(3, '2026-09-12', '12387980903', '55555555555', 'Entregue'),
+(4, '2026-09-13', '12345678910', '88888888888', 'Entregue'),
+(5, '2026-09-14', '99999999999', '12381980903', 'Entregue'),
+(6, '2026-09-15', '10101010101', '92929292929', 'Entregue'),
+(7, '2026-09-16', '44444444444', '66666666666', 'Entregue'),
+(8, '2026-09-17', '55555555555', '55555555555', 'Entregue'),
+(9, '2026-09-18', '66666666666', '88888888888', 'Entregue'),
+(10, '2026-09-19', '88888888888', '12388899903', 'Em andamento');
 
 
 -- =========================================
@@ -427,6 +464,10 @@ VALUES
 (8, '2026-09-17 15:45:00', 199.00),
 (9, '2026-09-18 11:10:00', 40.00),
 (10, '2026-09-19 16:20:00', 158.00);
+
+
+-- Pagamentos de exemplo já foram recebidos.
+UPDATE pagamento SET status_pagamento = 'Confirmado';
 
 
 -- =========================================

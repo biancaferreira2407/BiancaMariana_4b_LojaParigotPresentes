@@ -1,0 +1,79 @@
+.gp-abas{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.gp-aba{
+    display:inline-flex;align-items:center;gap:.5rem;cursor:pointer;
+    padding:.65rem 1.1rem;border-radius:999px;border:1px solid var(--line);
+    background:#fff;color:var(--bole);font:600 .92rem 'Poppins','Segoe UI',sans-serif;
+    transition:background .15s,color .15s,border-color .15s;
+}
+.gp-aba:hover{background:var(--misty)}
+.gp-aba.gp-ativa{background:var(--salmon);border-color:var(--salmon);color:#fff}
+.gp-contador{
+    min-width:24px;height:24px;padding:0 7px;border-radius:999px;display:inline-flex;
+    align-items:center;justify-content:center;font-size:.78rem;font-weight:700;
+    background:var(--misty);color:var(--bole);
+}
+.gp-aba.gp-ativa .gp-contador{background:#fff;color:var(--bole)}
+
+.gp-filtros{display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem}
+.gp-campo{display:flex;flex-direction:column;gap:.3rem;min-width:200px}
+.gp-campo[hidden]{display:none}
+.gp-campo label{font-weight:600;font-size:.85rem}
+.gp-campo input,.gp-campo select,.gp-select-status{
+    padding:.55rem .7rem;border:1px solid var(--line);border-radius:10px;
+    font:inherit;font-size:.9rem;background:#fff;color:var(--bole);
+}
+
+.gp-msg{min-height:1.3rem;margin-bottom:.8rem;font-size:.9rem;font-weight:500}
+.gp-msg.gp-ok{color:#617451}
+.gp-msg.gp-erro{color:#9D4D58}
+
+.gp-selo{
+    display:inline-block;padding:.2rem .65rem;border-radius:999px;font-size:.76rem;font-weight:700;
+    background:#FFF0F1;color:#9D4D58;border:1px solid #F1C5C9;white-space:nowrap;
+}
+.gp-selo.gp-confirmado{background:#F3F8EC;color:#617451;border-color:#D7E5C8}
+
+.gp-select-status{min-width:150px;cursor:pointer}
+.gp-select-status.gp-andamento{background:#FFF7E9;border-color:#F0D8B9}
+.gp-select-status.gp-entregando{background:#EEF3FB;border-color:#C9D7EE}
+.gp-select-status.gp-entregue{background:#F3F8EC;border-color:#D7E5C8}
+.gp-select-status:disabled{opacity:.6;cursor:wait}
+
+.gp-acoes{display:flex;gap:.4rem;flex-wrap:wrap}
+.gp-btn{
+    border:1px solid var(--line);background:#fff;color:var(--bole);cursor:pointer;
+    padding:.4rem .75rem;border-radius:10px;font:600 .8rem 'Poppins','Segoe UI',sans-serif;
+    transition:background .15s;
+}
+.gp-btn:hover{background:var(--wheat)}
+.gp-btn.gp-principal{background:var(--salmon);border-color:var(--salmon);color:#fff}
+.gp-btn.gp-principal:hover{background:var(--bole);border-color:var(--bole)}
+.gp-btn:disabled{opacity:.6;cursor:wait}
+.gp-btn.gp-desfazer{color:#9D4D58;border-color:#F1C5C9;background:#FFF8F8}
+.gp-btn.gp-desfazer:hover{background:#FFE9EC}
+.gp-btn.gp-desfazer:disabled{cursor:not-allowed}
+.gp-vazio{text-align:center;padding:1.5rem;color:#777}
+
+/* Detalhes */
+.gp-modal{display:none;position:fixed;inset:0;z-index:1000;padding:1rem;background:rgba(40,25,15,.55);align-items:center;justify-content:center}
+.gp-modal.gp-aberto{display:flex}
+.gp-modal-conteudo{width:100%;max-width:780px;max-height:90vh;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 18px 40px rgba(0,0,0,.28)}
+.gp-modal-topo{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;background:var(--misty);color:var(--bole)}
+.gp-modal-topo h2{font-size:1.2rem;margin:0}
+.gp-fechar{background:transparent;border:none;font-size:1.8rem;line-height:1;cursor:pointer;color:var(--bole);padding:0 .4rem}
+.gp-detalhes{padding:1.2rem 1.4rem}
+.gp-dados{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem 1.5rem;margin-bottom:1rem;font-size:.92rem}
+.gp-bloco{margin-top:1.1rem}
+.gp-bloco h3{font-size:.95rem;color:var(--bole);border-bottom:2px solid var(--fawn);padding-bottom:.3rem;margin-bottom:.5rem}
+.gp-bloco ul{list-style:none;padding:0;margin:0}
+.gp-bloco li{display:flex;justify-content:space-between;gap:.75rem;padding:.35rem 0;border-bottom:1px dashed #F1DEDF;font-size:.9rem}
+.gp-bloco li:last-child{border-bottom:none}
+.gp-bloco li small{display:block;color:#8B6970;font-size:.76rem}
+.gp-embrulho{margin-top:.6rem;padding:.5rem .75rem;border-radius:10px;background:#FFF7E9;border:1px solid #F0D8B9;font-size:.88rem}
+.gp-total{display:flex;justify-content:space-between;margin-top:.6rem;padding:.6rem .8rem;border-radius:10px;background:var(--wheat);font-weight:700}
+.gp-rodape-modal{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1.2rem}
+
+@media (max-width:700px){
+    .gp-dados{grid-template-columns:1fr}
+    .gp-filtros{flex-direction:column;align-items:stretch}
+}

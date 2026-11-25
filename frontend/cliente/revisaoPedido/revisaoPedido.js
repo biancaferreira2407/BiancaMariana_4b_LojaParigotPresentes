@@ -45,9 +45,23 @@ function mostrarCartao(p,indice){
  <p class="aviso-cartao">Use dados fictícios. Os campos são usados apenas para validar a demonstração e não são enviados ao servidor nem armazenados.</p>
  <button class="botao-continuar" type="submit">Simular pagamento</button></form></section>`;
 }
-function finalizarEtapas(){
+async function finalizarEtapas(){
  const area=el('etapaPagamento');
- area.innerHTML=`<section class="bloco-pagamento sucesso-pagamento"><h2>Etapas concluídas!</h2><p>Pedido <strong>#${pedidoCriado.id_pedido}</strong> registrado. A loja confirmará o pagamento e os detalhes do seu pedido.</p><a class="botao-continuar link-loja" href="../dashboard/dashboard.html">Voltar à loja</a></section>`;
+ const concluir=el('concluirEtapas');
+ const token=sessionStorage.getItem('token');
+ if(concluir){concluir.disabled=true;concluir.textContent='Avisando a loja...'}
+ mensagem.classList.remove('sucesso');mensagem.textContent='';
+ try{
+  // Avisa a administração para conferir o pagamento (pedido e pagamento seguem "Não confirmado").
+  const resposta=await fetch(`${API_PEDIDO}/${pedidoCriado.id_pedido}/avisar-pagamento`,{method:'POST',headers:{Authorization:`Bearer ${token}`}});
+  const dados=await resposta.json().catch(()=>({}));
+  if(!resposta.ok)throw new Error(dados.mensagem||'Não foi possível avisar a loja.');
+ }catch(erro){
+  mensagem.textContent=(erro.message||'Não foi possível avisar a loja.')+' Tente novamente.';
+  if(concluir){concluir.disabled=false;concluir.textContent='Concluir pedido'}
+  return;
+ }
+ area.innerHTML=`<section class="bloco-pagamento sucesso-pagamento"><h2>Etapas concluídas!</h2><p>Pedido <strong>#${pedidoCriado.id_pedido}</strong> registrado. A loja foi avisada e vai conferir o seu pagamento. Enquanto isso, o pedido e o pagamento ficam como <strong>"Não confirmado"</strong>.</p><a class="botao-continuar link-loja" href="../dashboard/dashboard.html">Voltar à loja</a></section>`;
  botao.hidden=true;
 }
 function adicionarBotaoConcluir(){
