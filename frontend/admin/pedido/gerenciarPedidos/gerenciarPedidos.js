@@ -140,13 +140,22 @@ function telefoneParaWhatsapp(telefone) {
     return t.length >= 12 && t.length <= 13 ? t : null;
 }
 
-function linkWhatsappPedidoConfirmado(telefone, recebimento) {
+function linkWhatsapp(telefone, texto) {
     const numero = telefoneParaWhatsapp(telefone);
     if (!numero) return null;
+    return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+}
+
+function linkWhatsappPedidoConfirmado(telefone, recebimento) {
     // Pedido para retirada na loja não tem "entrega": o prazo passa a ser o de retirada.
     const prazo = recebimento === 'retirada' ? 'prazo de retirada' : 'prazo de entrega';
-    const texto = `olá, tudo bem?\nseu pedido foi confirmado.\n${prazo}: `;
-    return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+    return linkWhatsapp(telefone, `olá, tudo bem?\nseu pedido foi confirmado.\n${prazo}: `);
+}
+
+function linkWhatsappPedidoPronto(telefone, recebimento) {
+    let texto = 'olá, tudo bem?\nseu pedido está pronto';
+    if (recebimento === 'entrega') texto += '\nsaindo para entrega';
+    return linkWhatsapp(telefone, texto);
 }
 
 async function confirmarPagamento(id, botao) {
@@ -213,6 +222,12 @@ async function desfazerConfirmacao(id, botao) {
 async function alterarStatusPedido(id, novoStatus, select) {
     const pedido = pedidos.find(p => Number(p.id_pedido) === Number(id));
     const anterior = pedido ? statusPedidoNormalizado(pedido) : 'Em andamento';
+    const avisarPronto = novoStatus === 'Pedido pronto' && anterior !== 'Pedido pronto';
+
+    // A aba do WhatsApp precisa ser aberta já no clique/seleção, senão o navegador bloqueia o pop-up após o fetch.
+    const abaWhatsapp = avisarPronto ? window.open('', '_blank') : null;
+    if (abaWhatsapp) abaWhatsapp.document.title = 'Abrindo WhatsApp...';
+
     select.disabled = true;
     mostrarMensagem('');
     try {
@@ -224,9 +239,25 @@ async function alterarStatusPedido(id, novoStatus, select) {
         const dados = await resposta.json();
         if (!resposta.ok || !dados.sucesso) throw new Error(dados.mensagem || 'Não foi possível atualizar o status.');
         if (pedido) pedido.status_pedido = novoStatus;
-        mostrarMensagem(dados.mensagem, 'ok');
+
+        let aviso = dados.mensagem;
+        if (avisarPronto) {
+            // Só ABRE a conversa com a mensagem pronta: quem envia é o gerente, no próprio WhatsApp.
+            const link = linkWhatsappPedidoPronto(pedido?.telefone_cliente, pedido?.entrega_ou_retirada);
+            if (link && abaWhatsapp) {
+                abaWhatsapp.location.href = link;
+                aviso += ' O WhatsApp foi aberto com a mensagem pronta: confira e envie.';
+            } else {
+                if (abaWhatsapp) abaWhatsapp.close();
+                aviso += link
+                    ? ' O navegador bloqueou a abertura do WhatsApp: permita pop-ups para este site.'
+                    : ' Este cliente não tem telefone válido cadastrado, então o WhatsApp não foi aberto.';
+            }
+        }
+        mostrarMensagem(aviso, 'ok');
         renderizar(); // reaplica o filtro por status, se estiver ativo
     } catch (erro) {
+        if (abaWhatsapp) abaWhatsapp.close();
         select.value = anterior;
         select.disabled = false;
         mostrarMensagem(erro.message, 'erro');
