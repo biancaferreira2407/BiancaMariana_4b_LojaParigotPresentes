@@ -109,8 +109,8 @@ formSenha.addEventListener('submit', async (e) => {
         return;
     }
 
-    if (novaSenha.length < 8) {
-        mostrarMensagem('A senha deve ter pelo menos 8 caracteres.', 'erro');
+    if (novaSenha.length < 6) {
+        mostrarMensagem('A senha deve ter pelo menos 6 caracteres.', 'erro');
         return;
     }
 

@@ -94,9 +94,41 @@ document.getElementById('telefone').addEventListener('input', evento => {
     evento.target.value = mascararTelefone(evento.target.value);
 });
 
+// Mesma regra do backend: só letras (com acentos) e espaços; cada palavra começa com letra maiúscula.
+function formatarNome(valor) {
+    return String(valor ?? '')
+        .normalize('NFC')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLocaleLowerCase('pt-BR')
+        .replace(/(^|\s)(\p{L})/gu, (trecho, inicio, letra) => inicio + letra.toLocaleUpperCase('pt-BR'));
+}
+
+function nomeValido(nome) {
+    return /^\p{L}+(?: \p{L}+)*$/u.test(nome);
+}
+
+// Enquanto digita: tira tudo que não é letra/espaço e põe a 1ª letra de cada palavra em maiúscula,
+// mantendo o cursor no lugar.
+function mascararNome(campo) {
+    const limpar = texto => texto
+        .normalize('NFC')
+        .replace(/[^\p{L} ]/gu, '')
+        .replace(/ {2,}/g, ' ')
+        .replace(/^ /, '')
+        .toLocaleLowerCase('pt-BR')
+        .replace(/(^|\s)(\p{L})/gu, (trecho, inicio, letra) => inicio + letra.toLocaleUpperCase('pt-BR'));
+    const cursor = campo.selectionStart ?? campo.value.length;
+    const novoCursor = limpar(campo.value.slice(0, cursor)).length;
+    campo.value = limpar(campo.value);
+    campo.setSelectionRange(novoCursor, novoCursor);
+}
+
+document.getElementById('nome').addEventListener('input', evento => mascararNome(evento.target));
+
 function obterDadosFormulario() {
     return {
-        nome_pessoa: document.getElementById('nome').value.trim(),
+        nome_pessoa: formatarNome(document.getElementById('nome').value),
         data_nascimento_pessoa: document.getElementById('nascimento').value || null,
         email_pessoa: document.getElementById('email').value.trim(),
         endereco_pessoa: document.getElementById('endereco').value.trim(),
@@ -138,6 +170,12 @@ formConta.addEventListener('submit', evento => {
     const dados = obterDadosFormulario();
     if (!dados.nome_pessoa || !dados.email_pessoa || !dados.endereco_pessoa) {
         mensagemConta.textContent = 'Preencha nome, e-mail e endereço.';
+        return;
+    }
+
+    if (!nomeValido(dados.nome_pessoa)) {
+        mensagemConta.textContent = 'Digite o nome usando apenas letras.';
+        document.getElementById('nome').focus();
         return;
     }
 

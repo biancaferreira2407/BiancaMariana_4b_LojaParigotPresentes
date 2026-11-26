@@ -36,24 +36,39 @@
                     <circle cx="18" cy="20" r="1"></circle>
                 </svg>
                 <span>Carrinho</span>
+                <span class="contador-carrinho" id="contadorCarrinho" hidden>0</span>
             </a>
             <a href="../login/login.html" class="botao-login" id="botaoLogin">
                 Login
             </a>
 
-            <a href="../conta/conta.html" id="botaoConta" hidden aria-label="Minha conta" title="Minha conta">
+            <div class="menu-conta" id="botaoConta" hidden>
+                <button type="button" class="botao-conta" id="btnConta" aria-label="Minha conta" title="Minha conta"
+                    aria-haspopup="true" aria-expanded="false" aria-controls="painelConta">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+                    </svg>
+                </button>
 
-                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-
-                    <circle cx="12" cy="8" r="4" />
-                    <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
-                </svg>
-
-            </a>
+                <div class="painel-conta" id="painelConta" hidden>
+                    <a href="../conta/conta.html">Meu perfil</a>
+                    <button type="button" id="botaoSair">Sair da conta</button>
+                </div>
+            </div>
         </div>
 
         <nav class="navegacao" aria-label="Navegação principal">
+            <button class="botao-navegacao" id="botaoProdutos" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 8h14l-1 12H6L5 8Z"></path>
+                    <path d="M9 8V6a3 3 0 0 1 6 0v2"></path>
+                </svg>
+                <span>Produtos</span>
+            </button>
+
             <div class="menu-categorias">
                 <button class="botao-navegacao" id="btnCategorias" type="button" aria-expanded="false"
                     aria-controls="listaCategorias">
@@ -69,7 +84,6 @@
                     </svg>
                 </button>
                 <div class="lista-categorias" id="listaCategorias" hidden>
-                    <p class="titulo-lista">Explore por categoria</p>
                     <div id="opcoesCategorias" class="opcoes-categorias">
                         <span class="estado-categorias">Carregando categorias...</span>
                     </div>

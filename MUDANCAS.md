@@ -44,3 +44,20 @@
 - Front: login guarda `permissoes`; `auth-admin.js` bloqueia a tela sem o módulo (volta ao menu); `menu.js` esconde os cards sem acesso e se atualiza via `GET /login/permissoes`.
 - Banco: `documentacao/migracao_permissoes_cargo.sql` (bancos existentes) e permissões de Gerente/Diretor no `DW_proj_4B.sql`.
 
+## Ajustes na loja (cliente)
+- Busca de produtos ignora acentos e maiúsculas ("cafe" encontra "Café", "acucar" encontra "Açúcar").
+- Produtos sem estoque aparecem bloqueados na vitrine (selo "Esgotado", sem abrir detalhes nem ir ao carrinho).
+- O botão do carrinho mostra a quantidade de itens (soma das unidades) e acompanha mudanças feitas na tela do carrinho.
+- Carrinho: o "Remover" de cada item virou um ícone de lixeira.
+- Revisão do pedido: o botão bloqueado "Registrando pedido..." deixava de sumir porque o CSS anulava o atributo `hidden`; agora o botão é removido após registrar e `[hidden]` vale na página.
+- Ícone da conta abre um menu com "Meu perfil" e "Sair da conta" (encerra a sessão; o carrinho continua salvo no navegador).
+
+## Login e criar conta
+- Senha com no mínimo **6** caracteres (antes 8), no cadastro e também na redefinição de senha ("Esqueci minha senha"), para as duas telas seguirem a mesma regra. Servidor: entre 6 e 50.
+- Nome: só letras (com acentos) e espaços; a 1ª letra de cada palavra vira maiúscula enquanto digita ("joão da silva" -> "João Da Silva"). Regra única em `backend/utils/nome.js`, usada no cadastro e na tela Minha conta (o servidor também valida e formata).
+- Ao criar a conta, o cliente vai direto para o login, que mostra "Conta criada com sucesso!" e já preenche o e-mail.
+
+## Loja (cliente)
+- Barra de navegação ganhou o botão "Produtos" (volta para a vitrine, sem filtros, de qualquer ponto, inclusive de Pedidos realizados/Devoluções).
+- Categorias: "todas" em minúsculas e frase "Explore por categoria" removida.
+

@@ -1,5 +1,6 @@
 const { query } = require('../database');
 const { normalizarTelefone, telefoneValido, MENSAGEM_TELEFONE } = require('../utils/telefone');
+const { formatarNome, nomeValido, MENSAGEM_NOME } = require('../utils/nome');
 
 // Retorna somente os dados da pessoa que está autenticada.
 exports.obterMinhaConta = async (req, res) => {
@@ -44,7 +45,7 @@ exports.atualizarMinhaConta = async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: 'Informe sua senha atual para confirmar as alterações.' });
         }
 
-        const nome = typeof nome_pessoa === 'string' ? nome_pessoa.trim() : '';
+        const nome = typeof nome_pessoa === 'string' ? formatarNome(nome_pessoa) : '';
         const email = typeof email_pessoa === 'string' ? email_pessoa.trim().toLowerCase() : '';
         const endereco = typeof endereco_pessoa === 'string' ? endereco_pessoa.trim() : '';
         const telefone = normalizarTelefone(telefone_pessoa);
@@ -56,6 +57,10 @@ exports.atualizarMinhaConta = async (req, res) => {
 
         if (!nome || !email || !endereco) {
             return res.status(400).json({ sucesso: false, mensagem: 'Nome, e-mail, endereço e telefone são obrigatórios.' });
+        }
+
+        if (!nomeValido(nome)) {
+            return res.status(400).json({ sucesso: false, mensagem: MENSAGEM_NOME });
         }
 
         if (nome.length > 60 || endereco.length > 150 || email.length > 75) {

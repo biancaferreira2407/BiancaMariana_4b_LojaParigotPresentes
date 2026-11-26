@@ -88,7 +88,14 @@ function renderizarCarrinho() {
                         <output>${Number(item.quantidade)}</output>
                         <button type="button" data-acao="aumentar" data-indice="${indice}" aria-label="Aumentar quantidade">+</button>
                     </div>
-                    <button type="button" class="remover-item" data-acao="remover" data-indice="${indice}">Remover</button>
+                    <button type="button" class="remover-item" data-acao="remover" data-indice="${indice}" aria-label="Remover ${escaparHTML(item.nome)} do carrinho" title="Remover do carrinho">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 6h18"></path>
+                            <path d="M8 6V4h8v2"></path>
+                            <path d="M6 6l1 14h10l1-14"></path>
+                            <path d="M10 10v6M14 10v6"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <strong class="total-item">${formatarPreco(Number(item.preco) * Number(item.quantidade))}</strong>

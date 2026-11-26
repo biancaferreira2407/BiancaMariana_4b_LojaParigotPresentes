@@ -292,7 +292,7 @@ VALUES
 ('12388899903', 8000.00, 8, 0.5),
 ('77777777777', 9000.00, 9, 1),
 ('05703371945', 10000.00, 10, 0),
-('12381980903', 2000.00, 0, 2),
+('12381980903', 2000.00, 2, 2),
 ('99999999999', 20000.00, 1, 10),
 ('10101010101', 2000.00, 2, 0);
 
@@ -514,16 +514,37 @@ VALUES
 -- =========================================
 -- PERMISSÕES DOS CARGOS (cargo_has_tabela)
 -- =========================================
--- O funcionário só acessa os módulos marcados no cargo dele (tela Cargos).
--- Sem isto ninguém conseguiria entrar nos módulos: Gerente e Diretor começam com acesso total.
+-- O funcionário só acessa os módulos (CRUDs) marcados no cargo dele (tela Cargos).
+-- Gerente (cargo 2) e Diretor (cargo 10) começam com acesso a TODOS os módulos:
+-- 1 pedidos, 2 cargos, 3 pessoas, 4 clientes, 5 funcionarios, 6 formas_pagamento,
+-- 7 categorias, 8 unidade_medida, 9 produtos, 10 devolucoes.
 -- Os demais cargos são configurados na tela Cargos.
 
 INSERT INTO cargo_has_tabela
 (id_cargo, id_tabela)
-SELECT c.id_cargo, t.id_tabela
-FROM cargo c
-CROSS JOIN tabelas_card_menu t
-WHERE c.nome_cargo IN ('Gerente', 'Diretor');
+VALUES
+-- Gerente
+(2, 1),
+(2, 2),
+(2, 3),
+(2, 4),
+(2, 5),
+(2, 6),
+(2, 7),
+(2, 8),
+(2, 9),
+(2, 10),
+-- Diretor
+(10, 1),
+(10, 2),
+(10, 3),
+(10, 4),
+(10, 5),
+(10, 6),
+(10, 7),
+(10, 8),
+(10, 9),
+(10, 10);
 
 
 -- =========================================

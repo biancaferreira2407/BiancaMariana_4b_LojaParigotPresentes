@@ -133,7 +133,7 @@ botao.addEventListener('click',async()=>{
   localStorage.removeItem('carrinhoParigot');localStorage.removeItem('preferenciasPedidoParigot');sessionStorage.removeItem('pagamentoParigot');
   el('listaProdutos').innerHTML='';el('dadosRecebimento').innerHTML='';el('dadosPagamento').innerHTML='';
   mensagem.classList.add('sucesso');mensagem.textContent=`Pedido #${pedidoCriado.id_pedido} registrado! Prossiga com o pagamento abaixo.`;
-  botao.hidden=true;renderizarEtapas();
+  botao.remove();renderizarEtapas();
  }catch(erro){mensagem.textContent=erro.message||'Erro ao registrar pedido. Seu carrinho foi preservado.';botao.disabled=false;botao.textContent='Tentar novamente';}
 });
 inicializar();

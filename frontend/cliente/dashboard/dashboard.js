@@ -15,16 +15,30 @@ const conteudoModalProduto = document.getElementById('conteudoModalProduto');
 const botaoLogin = document.getElementById('botaoLogin');
 const botaoConta = document.getElementById('botaoConta');
 
-const token = sessionStorage.getItem('token');
-const perfil = sessionStorage.getItem('perfil');
+const btnConta = document.getElementById('btnConta');
+const painelConta = document.getElementById('painelConta');
+const botaoSair = document.getElementById('botaoSair');
+const contadorCarrinho = document.getElementById('contadorCarrinho');
+const linkCarrinho = document.querySelector('.botao-carrinho');
 
-if (token && perfil === 'cliente') {
-    botaoLogin.style.display = 'none';
-    botaoConta.hidden = false;
-} else {
-    botaoLogin.style.display = 'flex';
-    botaoConta.hidden = true;
+function clienteLogado() {
+    return Boolean(sessionStorage.getItem('token')) && sessionStorage.getItem('perfil') === 'cliente';
 }
+
+function fecharMenuConta() {
+    painelConta.hidden = true;
+    btnConta.setAttribute('aria-expanded', 'false');
+}
+
+// Mostra "Login" ou o ícone da conta conforme a sessão.
+function atualizarCabecalhoLogin() {
+    const logado = clienteLogado();
+    botaoLogin.style.display = logado ? 'none' : 'flex';
+    botaoConta.hidden = !logado;
+    if (!logado) fecharMenuConta();
+}
+
+atualizarCabecalhoLogin();
 
 let produtos = [];
 let categorias = [];
@@ -47,7 +61,35 @@ function carregarCarrinhoSalvo() {
 
 function salvarCarrinhoSalvo() {
     localStorage.setItem(CHAVE_CARRINHO, JSON.stringify(carrinho));
+    atualizarContadorCarrinho();
 }
+
+// Mostra no botão do carrinho quantas unidades há nele (some quando está vazio).
+function atualizarContadorCarrinho() {
+    const total = carrinho.reduce((soma, item) => soma + Number(item.quantidade || 0), 0);
+    contadorCarrinho.textContent = total > 99 ? '99+' : String(total);
+    contadorCarrinho.hidden = total <= 0;
+    linkCarrinho.setAttribute('aria-label', total > 0
+        ? `Carrinho de compras, ${total} ${total === 1 ? 'item' : 'itens'}`
+        : 'Carrinho de compras');
+}
+
+// O carrinho também é alterado na tela do carrinho: relê do navegador ao voltar para a loja.
+function sincronizarCarrinho() {
+    carrinho = carregarCarrinhoSalvo();
+    atualizarContadorCarrinho();
+}
+
+window.addEventListener('storage', evento => {
+    if (evento.key === CHAVE_CARRINHO || evento.key === null) sincronizarCarrinho();
+});
+window.addEventListener('pageshow', () => {
+    sincronizarCarrinho();
+    atualizarCabecalhoLogin();
+});
+window.addEventListener('focus', sincronizarCarrinho);
+atualizarContadorCarrinho();
+
 // O upload do admin sempre grava .jpeg; produtos antigos podem ter .png ou .jpg.
 const EXTENSOES_IMAGEM = ['jpeg', 'png', 'jpg'];
 const IMAGEM_PADRAO = '../../../imagens/silhueta.jpeg';
@@ -77,7 +119,23 @@ btnContato.addEventListener('click', () => {
     painelContato.hidden = aberto;
 });
 
+btnConta.addEventListener('click', () => {
+    const aberto = btnConta.getAttribute('aria-expanded') === 'true';
+    btnConta.setAttribute('aria-expanded', String(!aberto));
+    painelConta.hidden = aberto;
+});
+
+botaoSair.addEventListener('click', () => {
+    // Encerra a sessão do cliente. O carrinho continua salvo neste navegador.
+    sessionStorage.clear();
+    atualizarCabecalhoLogin();
+    secaoHistorico.hidden = true;
+    secaoProdutos.hidden = false;
+});
+
 document.addEventListener('click', (evento) => {
+    if (!evento.target.closest('.menu-conta')) fecharMenuConta();
+
     if (!evento.target.closest('.menu-categorias')) {
         listaCategorias.hidden = true;
         btnCategorias.setAttribute('aria-expanded', 'false');
@@ -93,6 +151,7 @@ document.addEventListener('click', (evento) => {
 
 document.addEventListener('keydown', (evento) => {
     if (evento.key === 'Escape') {
+        fecharMenuConta();
         painelContato.hidden = true;
         btnContato.setAttribute('aria-expanded', 'false');
         listaCategorias.hidden = true;
@@ -115,7 +174,7 @@ async function carregarCategorias() {
 }
 
 function renderizarCategorias() {
-    const opcoes = [{ id: 'todas', nome: 'Todas' }, ...categorias.map(c => ({ id: String(c.id_categoria), nome: c.nome_categoria }))];
+    const opcoes = [{ id: 'todas', nome: 'todas' }, ...categorias.map(c => ({ id: String(c.id_categoria), nome: c.nome_categoria }))];
     opcoesCategorias.innerHTML = opcoes.map(c => `
         <button type="button" data-categoria="${escaparHTML(c.id)}" class="${String(categoriaSelecionada) === String(c.id) ? 'categoria-ativa' : ''}">
             ${escaparHTML(c.nome)}${c.id === 'todas' ? ' <span class="texto-sem-filtro">(sem filtros)</span>' : ''}
@@ -172,11 +231,19 @@ function formatarPreco(valor) {
     return Number.isFinite(numero) ? numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Preço não informado';
 }
 
+// Minúsculas e sem acentos: "cafe" encontra "Café", "acucar" encontra "Açúcar".
+function normalizarTexto(valor) {
+    return String(valor ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase('pt-BR');
+}
+
 function renderizarProdutos() {
-    const termo = campoPesquisa.value.trim().toLocaleLowerCase('pt-BR');
+    const termo = normalizarTexto(campoPesquisa.value.trim());
     const filtrados = produtos.filter(produto => {
         const correspondeCategoria = categoriaSelecionada === 'todas' || String(produto.id_categoria) === String(categoriaSelecionada);
-        const correspondeBusca = !termo || String(produto.nome_produto || '').toLocaleLowerCase('pt-BR').includes(termo);
+        const correspondeBusca = !termo || normalizarTexto(produto.nome_produto).includes(termo);
         return correspondeCategoria && correspondeBusca;
     });
 
@@ -186,17 +253,20 @@ function renderizarProdutos() {
         return;
     }
 
-    gradeProdutos.innerHTML = filtrados.map(produto => `
-        <button class="card-produto" type="button" data-produto="${escaparHTML(produto.id_produto)}" aria-label="Ver detalhes de ${escaparHTML(produto.nome_produto)}">
-            <span class="imagem-card"><img src="${obterImagem(produto)}" data-id="${escaparHTML(produto.id_produto)}" alt="${escaparHTML(produto.nome_produto)}" loading="lazy" onerror="proximaImagem(this)"></span>
+    // Produto sem estoque fica visível, mas bloqueado (aria-disabled, sem clique): não abre os detalhes nem vai para o carrinho.
+    gradeProdutos.innerHTML = filtrados.map(produto => {
+        const semEstoque = estoqueDoProduto(produto) <= 0;
+        return `
+        <button class="card-produto${semEstoque ? ' esgotado' : ''}" type="button" data-produto="${escaparHTML(produto.id_produto)}" ${semEstoque ? 'aria-disabled="true" tabindex="-1"' : ''} aria-label="${semEstoque ? `${escaparHTML(produto.nome_produto)} — produto esgotado` : `Ver detalhes de ${escaparHTML(produto.nome_produto)}`}">
+            <span class="imagem-card"><img src="${obterImagem(produto)}" data-id="${escaparHTML(produto.id_produto)}" alt="${escaparHTML(produto.nome_produto)}" loading="lazy" onerror="proximaImagem(this)">${semEstoque ? '<span class="selo-esgotado">Esgotado</span>' : ''}</span>
             <span class="informacoes-card">
                 <strong>${escaparHTML(produto.nome_produto)}</strong>
                 <span class="preco-card">${formatarPreco(produto.preco_unitario_produto)}</span>
             </span>
-        </button>
-    `).join('');
+        </button>`;
+    }).join('');
 
-    gradeProdutos.querySelectorAll('.card-produto').forEach(card => {
+    gradeProdutos.querySelectorAll('.card-produto:not(.esgotado)').forEach(card => {
         card.addEventListener('click', () => abrirDetalhes(card.dataset.produto));
     });
 }
@@ -417,7 +487,16 @@ botaoDevolucoes.addEventListener('click', () => {
     carregarHistorico('devolucoes');
 });
 
-botaoVoltarProdutos.addEventListener('click', () => {
+// Volta para a vitrine (sem filtros) vindo de Pedidos realizados/Devoluções ou de qualquer ponto da página.
+function mostrarProdutos() {
     secaoHistorico.hidden = true;
     secaoProdutos.hidden = false;
-});
+    categoriaSelecionada = 'todas';
+    campoPesquisa.value = '';
+    renderizarCategorias();
+    renderizarProdutos();
+    secaoProdutos.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+botaoVoltarProdutos.addEventListener('click', mostrarProdutos);
+document.getElementById('botaoProdutos').addEventListener('click', mostrarProdutos);

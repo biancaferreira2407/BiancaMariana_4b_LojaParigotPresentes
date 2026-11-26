@@ -255,10 +255,10 @@ exports.redefinirSenha = async (req, res) => {
             });
         }
 
-        if (novaSenha.length < 8 || novaSenha.length > 50) {
+        if (novaSenha.length < 6 || novaSenha.length > 50) {
             return res.status(400).json({
                 sucesso: false,
-                mensagem: 'A senha deve ter entre 8 e 50 caracteres.'
+                mensagem: 'A senha deve ter entre 6 e 50 caracteres.'
             });
         }
 

@@ -4,6 +4,39 @@ const botaoCadastrar = document.getElementById('botaoCadastrar');
 const campoCpf = document.getElementById('cpf_pessoa');
 const campoDataNascimento = document.getElementById('data_nascimento_pessoa');
 
+// Mesma regra do backend: só letras (com acentos) e espaços; cada palavra começa com letra maiúscula.
+function formatarNome(valor) {
+    return String(valor ?? '')
+        .normalize('NFC')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLocaleLowerCase('pt-BR')
+        .replace(/(^|\s)(\p{L})/gu, (trecho, inicio, letra) => inicio + letra.toLocaleUpperCase('pt-BR'));
+}
+
+function nomeValido(nome) {
+    return /^\p{L}+(?: \p{L}+)*$/u.test(nome);
+}
+
+// Enquanto digita: tira tudo que não é letra/espaço e põe a 1ª letra de cada palavra em maiúscula,
+// mantendo o cursor no lugar.
+function mascararNome(campo) {
+    const limpar = texto => texto
+        .normalize('NFC')
+        .replace(/[^\p{L} ]/gu, '')
+        .replace(/ {2,}/g, ' ')
+        .replace(/^ /, '')
+        .toLocaleLowerCase('pt-BR')
+        .replace(/(^|\s)(\p{L})/gu, (trecho, inicio, letra) => inicio + letra.toLocaleUpperCase('pt-BR'));
+    const cursor = campo.selectionStart ?? campo.value.length;
+    const novoCursor = limpar(campo.value.slice(0, cursor)).length;
+    campo.value = limpar(campo.value);
+    campo.setSelectionRange(novoCursor, novoCursor);
+}
+
+const campoNome = document.getElementById('nome_pessoa');
+campoNome.addEventListener('input', () => mascararNome(campoNome));
+
 // Impede a seleção de uma data futura.
 const hoje = new Date();
 const dataLocal = new Date(hoje.getTime() - hoje.getTimezoneOffset() * 60000)
@@ -82,6 +115,14 @@ formCadastro.addEventListener('submit', async evento => {
     const senha = document.getElementById('senha_pessoa').value;
     const confirmarSenha = document.getElementById('confirmar_senha').value;
 
+    const nome = formatarNome(campoNome.value);
+    campoNome.value = nome;
+    if (!nomeValido(nome)) {
+        mensagemCadastro.textContent = 'Digite o nome usando apenas letras.';
+        campoNome.focus();
+        return;
+    }
+
     if (!validarCpf(cpf)) {
         mensagemCadastro.textContent = 'Digite um CPF válido.';
         campoCpf.focus();
@@ -94,8 +135,8 @@ formCadastro.addEventListener('submit', async evento => {
         return;
     }
 
-    if (senha.length < 8) {
-        mensagemCadastro.textContent = 'A senha deve ter pelo menos 8 caracteres.';
+    if (senha.length < 6) {
+        mensagemCadastro.textContent = 'A senha deve ter pelo menos 6 caracteres.';
         document.getElementById('senha_pessoa').focus();
         return;
     }
@@ -108,7 +149,7 @@ formCadastro.addEventListener('submit', async evento => {
 
     const dadosCadastro = {
         cpf_pessoa: cpf,
-        nome_pessoa: document.getElementById('nome_pessoa').value.trim(),
+        nome_pessoa: nome,
         data_nascimento_pessoa: campoDataNascimento.value,
         endereco_pessoa: document.getElementById('endereco_pessoa').value.trim(),
         telefone_pessoa: document.getElementById('telefone_pessoa').value.replace(/\D/g, ''),
@@ -116,6 +157,7 @@ formCadastro.addEventListener('submit', async evento => {
         senha_pessoa: senha
     };
 
+    let redirecionando = false;
     try {
         botaoCadastrar.disabled = true;
         botaoCadastrar.textContent = 'Cadastrando...';
@@ -132,16 +174,20 @@ formCadastro.addEventListener('submit', async evento => {
             throw new Error(resultado.mensagem || resultado.error || 'Não foi possível realizar o cadastro.');
         }
 
-        mensagemCadastro.textContent = 'Cadastro realizado! Você já pode fazer login.';
-        mensagemCadastro.classList.add('sucesso');
-        formCadastro.reset();
+        // Conta criada: vai direto para o login (que avisa que deu certo e já traz o e-mail preenchido).
+        sessionStorage.setItem('contaCriada', dadosCadastro.email_pessoa);
+        redirecionando = true;
+        window.location.href = '../login/login.html';
+        return;
     } catch (erro) {
         console.error('Erro ao cadastrar pessoa:', erro);
         mensagemCadastro.textContent = erro.message === 'Failed to fetch'
             ? 'Não foi possível conectar ao servidor. Verifique se o backend está ligado.'
             : erro.message;
     } finally {
-        botaoCadastrar.disabled = false;
-        botaoCadastrar.textContent = 'Criar conta';
+        if (!redirecionando) {
+            botaoCadastrar.disabled = false;
+            botaoCadastrar.textContent = 'Criar conta';
+        }
     }
 });

@@ -8,6 +8,16 @@ const modalPerfil = document.getElementById('modalPerfil');
 const btnCliente = document.getElementById('btnCliente');
 const btnAdmin = document.getElementById('btnAdmin');
 
+// Vindo do cadastro: avisa que a conta foi criada e já preenche o e-mail.
+const emailContaCriada = sessionStorage.getItem('contaCriada');
+if (emailContaCriada) {
+    sessionStorage.removeItem('contaCriada');
+    document.getElementById('usuario').value = emailContaCriada;
+    mensagemLogin.textContent = 'Conta criada com sucesso! Faça login para continuar.';
+    mensagemLogin.classList.add('sucesso');
+    campoSenha.focus();
+}
+
 let usuarioLogin = '';
 let senhaLogin = '';
 
