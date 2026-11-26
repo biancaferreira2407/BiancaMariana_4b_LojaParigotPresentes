@@ -19,6 +19,11 @@
 
     if (!sessionStorage.getItem('token') || sessionStorage.getItem('perfil') !== 'admin') return;
 
+    // As notificações são de pedidos: só aparecem para cargos com o módulo Pedidos.
+    let permissoes = [];
+    try { permissoes = JSON.parse(sessionStorage.getItem('permissoes')) || []; } catch (erro) { /* sem permissões */ }
+    if (!permissoes.includes('pedidos')) return;
+
     // Estilos
     const css = document.createElement('link');
     css.rel = 'stylesheet';

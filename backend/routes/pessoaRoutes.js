@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pessoaController = require('../controllers/pessoaController');
-const { autenticar, exigirAdmin } = require('../middlewares/authMiddleware');
+const { autenticar, exigirModulo } = require('../middlewares/authMiddleware');
 
 // Dados pessoais: somente administração.
-router.use(autenticar, exigirAdmin);
+router.use(autenticar, exigirModulo('pessoas'));
 
 // CRUD de Pessoas
 router.get('/', pessoaController.listarPessoas);

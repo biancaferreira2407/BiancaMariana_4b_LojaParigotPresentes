@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pedidoController = require('../controllers/pedidoController');
 const autenticarCliente = require('../middlewares/autenticarCliente');
-const { autenticar, exigirAdmin } = require('../middlewares/authMiddleware');
+const { autenticar, exigirModulo } = require('../middlewares/authMiddleware');
 
 // Área do cliente
 router.get('/meus-pedidos', autenticarCliente, pedidoController.listarPedidosCliente);
@@ -13,11 +13,11 @@ router.post('/', autenticarCliente, pedidoController.criarPedido);
 router.post('/:id/avisar-pagamento', autenticarCliente, pedidoController.avisarPagamento);
 
 // Área administrativa
-router.post('/admin', autenticar, exigirAdmin, pedidoController.criarPedidoAdmin);
-router.get('/', autenticar, exigirAdmin, pedidoController.listarPedidos);
-router.get('/:id', autenticar, exigirAdmin, pedidoController.obterPedido);
-router.patch('/:id/confirmar-pagamento', autenticar, exigirAdmin, pedidoController.confirmarPagamento);
-router.patch('/:id/status', autenticar, exigirAdmin, pedidoController.atualizarStatusPedido);
-router.patch('/:id/desfazer-confirmacao', autenticar, exigirAdmin, pedidoController.desfazerConfirmacaoPagamento);
+router.post('/admin', autenticar, exigirModulo('pedidos'), pedidoController.criarPedidoAdmin);
+router.get('/', autenticar, exigirModulo('pedidos'), pedidoController.listarPedidos);
+router.get('/:id', autenticar, exigirModulo('pedidos', 'devolucoes'), pedidoController.obterPedido);
+router.patch('/:id/confirmar-pagamento', autenticar, exigirModulo('pedidos'), pedidoController.confirmarPagamento);
+router.patch('/:id/status', autenticar, exigirModulo('pedidos'), pedidoController.atualizarStatusPedido);
+router.patch('/:id/desfazer-confirmacao', autenticar, exigirModulo('pedidos'), pedidoController.desfazerConfirmacaoPagamento);
 
 module.exports = router;

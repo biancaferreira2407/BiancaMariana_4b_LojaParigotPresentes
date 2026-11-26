@@ -512,6 +512,21 @@ VALUES
 
 
 -- =========================================
+-- PERMISSÕES DOS CARGOS (cargo_has_tabela)
+-- =========================================
+-- O funcionário só acessa os módulos marcados no cargo dele (tela Cargos).
+-- Sem isto ninguém conseguiria entrar nos módulos: Gerente e Diretor começam com acesso total.
+-- Os demais cargos são configurados na tela Cargos.
+
+INSERT INTO cargo_has_tabela
+(id_cargo, id_tabela)
+SELECT c.id_cargo, t.id_tabela
+FROM cargo c
+CROSS JOIN tabelas_card_menu t
+WHERE c.nome_cargo IN ('Gerente', 'Diretor');
+
+
+-- =========================================
 -- INSERTS DA TABELA devolucoes
 -- =========================================
 

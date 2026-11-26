@@ -35,3 +35,12 @@
 ## Ainda recomendado (não alterado)
 - **Senhas estão em texto puro** no banco (`senha_pessoa VARCHAR(50)`). O ideal é guardar hash (bcrypt/scrypt), o que exige mudar a coluna e migrar as senhas.
 - O `.env` veio dentro do ZIP com senha do banco e do Gmail: troque essas senhas e não envie o arquivo a terceiros.
+
+## Acesso por cargo (funcionários)
+- O funcionário só acessa os módulos marcados no **cargo** dele (tela Cargos -> `cargo_has_tabela`). Cargo sem módulos = menu vazio com aviso.
+- Servidor: `exigirModulo(...)` (em `authMiddleware.js`) lê o cargo no banco **a cada chamada**; mudar o cargo/permissões vale na hora e funcionário excluído perde o acesso. Resposta 403 com `moduloNegado: true`.
+- Módulo -> telas/API: `pedidos` (novo pedido, realizados, gerenciar, notificações), `devolucoes`, `cargos`, `pessoas`, `produtos`, `categorias`, `unidade_medida`, `formas_pagamento`; `clientes` e `funcionarios` controlam só a API (não há menu próprio).
+- Dependências entre telas: Pessoas usa as APIs de cliente/funcionário/lista de cargos; Novo pedido lê as listas de clientes, funcionários e formas de pagamento; Devoluções lê o detalhe do pedido. Essas leituras ficam liberadas para o módulo que depende delas.
+- Front: login guarda `permissoes`; `auth-admin.js` bloqueia a tela sem o módulo (volta ao menu); `menu.js` esconde os cards sem acesso e se atualiza via `GET /login/permissoes`.
+- Banco: `documentacao/migracao_permissoes_cargo.sql` (bancos existentes) e permissões de Gerente/Diretor no `DW_proj_4B.sql`.
+

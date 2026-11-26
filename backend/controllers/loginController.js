@@ -1,5 +1,6 @@
 const { query } = require('../database');
 const jwt = require('jsonwebtoken');
+const { buscarPermissoes } = require('../middlewares/authMiddleware');
 
 exports.login = async (req, res) => {
     try {
@@ -83,11 +84,17 @@ exports.login = async (req, res) => {
             { expiresIn: '2h' }
         );
 
+        // Funcionário: lista os módulos que o cargo dele pode acessar (cargo_has_tabela).
+        const permissoes = perfilEscolhido === 'admin'
+            ? await buscarPermissoes(pessoa.cpf_pessoa)
+            : [];
+
         res.json({
             sucesso: true,
             mensagem: 'Login realizado com sucesso!',
             token: token,
             perfil: perfilEscolhido,
+            permissoes: permissoes,
             cliente: {
                 cpf_pessoa: pessoa.cpf_pessoa,
                 nome_pessoa: pessoa.nome_pessoa,
@@ -102,5 +109,16 @@ exports.login = async (req, res) => {
             sucesso: false,
             mensagem: 'Erro interno do servidor.'
         });
+    }
+};
+
+// Permissões atuais do funcionário logado (sempre lidas do banco).
+exports.permissoes = async (req, res) => {
+    try {
+        const permissoes = await buscarPermissoes(req.usuario.cpf);
+        res.json({ sucesso: true, permissoes });
+    } catch (error) {
+        console.error('Erro ao buscar permissões:', error);
+        res.status(500).json({ sucesso: false, mensagem: 'Erro interno do servidor.' });
     }
 };

@@ -2,6 +2,8 @@
  * Proteção das telas administrativas.
  *
  * 1) Exige login com perfil "admin" (funcionário). Sem login, volta para a tela de login.
+ *    Cada tela só abre se o cargo do funcionário tiver o módulo correspondente (cargo_has_tabela);
+ *    senão volta para o menu. O servidor confere de novo em toda chamada à API.
  * 2) Envia automaticamente o token (Authorization: Bearer ...) em toda chamada
  *    feita à API do backend, pois as rotas administrativas exigem autenticação.
  * 3) Se o servidor responder 401 (sessão expirada), volta para o login.
@@ -14,12 +16,27 @@
     const API = 'http://localhost:3001';
     const urlLogin = new URL('../cliente/login/login.html', document.currentScript.src).href;
 
+    const urlMenu = new URL('menu/menu.html', document.currentScript.src).href;
+
     function irParaLogin() {
         sessionStorage.removeItem('token');
         sessionStorage.removeItem('perfil');
         sessionStorage.removeItem('cliente');
+        sessionStorage.removeItem('permissoes');
         window.location.replace(urlLogin);
     }
+
+    // Pasta da tela -> módulo do cargo (tabelas_card_menu.nome_tabela) exigido para abri-la.
+    const MODULO_POR_PASTA = {
+        '/admin/produto/': 'produtos',
+        '/admin/pedido/': 'pedidos',
+        '/admin/devolucao/': 'devolucoes',
+        '/admin/cargo/': 'cargos',
+        '/admin/unidade_medida/': 'unidade_medida',
+        '/admin/pessoa/': 'pessoas',
+        '/admin/categoria/': 'categorias',
+        '/admin/forma_pagamento/': 'formas_pagamento'
+    };
 
     const token = sessionStorage.getItem('token');
     const perfil = sessionStorage.getItem('perfil');
@@ -28,6 +45,26 @@
         irParaLogin();
         return;
     }
+
+    // Sessão iniciada antes do controle por cargo (sem a lista de módulos): entra de novo para carregá-la.
+    let permissoes;
+    try { permissoes = JSON.parse(sessionStorage.getItem('permissoes')); } catch (erro) { permissoes = null; }
+    if (!Array.isArray(permissoes)) {
+        irParaLogin();
+        return;
+    }
+
+    const caminho = decodeURIComponent(window.location.pathname);
+    const pasta = Object.keys(MODULO_POR_PASTA).find(chave => caminho.includes(chave));
+    if (pasta && !permissoes.includes(MODULO_POR_PASTA[pasta])) {
+        alert('Seu cargo não tem acesso a este módulo.');
+        window.location.replace(urlMenu);
+        return;
+    }
+
+    // Usado pelo menu e pelas notificações.
+    window.permissoesAdmin = permissoes;
+    window.temAcessoModulo = modulo => permissoes.includes(modulo);
 
     const fetchOriginal = window.fetch.bind(window);
 
@@ -47,6 +84,17 @@
         if (chamadaDaApi && resposta.status === 401) {
             alert('Sua sessão expirou. Faça login novamente.');
             irParaLogin();
+        }
+
+        // O servidor também confere o cargo a cada chamada (ex.: o cargo foi alterado com a sessão aberta).
+        if (chamadaDaApi && resposta.status === 403) {
+            try {
+                const corpo = await resposta.clone().json();
+                if (corpo && corpo.moduloNegado) {
+                    alert(corpo.mensagem || 'Seu cargo não tem acesso a este módulo.');
+                    if (!window.location.href.startsWith(urlMenu)) window.location.replace(urlMenu);
+                }
+            } catch (erro) { /* resposta sem JSON: segue o fluxo normal */ }
         }
 
         return resposta;

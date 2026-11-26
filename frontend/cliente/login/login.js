@@ -135,6 +135,13 @@ function finalizarLogin(dados) {
     sessionStorage.setItem('cliente', JSON.stringify(dados.cliente));
     sessionStorage.setItem('perfil', dados.perfil);
 
+    // Funcionário: módulos liberados para o cargo dele (o menu e as telas admin usam para limitar o acesso).
+    if (dados.perfil === 'admin') {
+        sessionStorage.setItem('permissoes', JSON.stringify(dados.permissoes || []));
+    } else {
+        sessionStorage.removeItem('permissoes');
+    }
+
     if (dados.perfil === 'admin') {
         sessionStorage.removeItem('redirecionarAposLogin');
         window.location.href = '../../admin/menu/menu.html';

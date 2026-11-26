@@ -20,18 +20,22 @@
         Selecione o módulo que deseja gerenciar
     </p>
 
+    <p class="txt" id="semAcesso" hidden>
+        Seu cargo ainda não tem acesso a nenhum módulo. Fale com o gerente para liberar.
+    </p>
+
     <p class="txt"><button type="button" id="btnSair" style="cursor:pointer;background:none;border:1px solid currentColor;border-radius:8px;padding:6px 14px;color:inherit;font:inherit">Sair</button></p>
 
     <!-- Conteúdo Principal -->
     <main class="container-master">
         <div class="menu-grid">
-            <a href="../produto/produto.html" class="card-menu">
+            <a href="../produto/produto.html" class="card-menu" data-modulo="produtos">
                 <div class="card-icon">📦</div>
                 <h2>Produtos</h2>
                 <p>Cadastrar, alterar, consultar e excluir produtos do estoque.</p>
             </a>
 
-            <div class="pedido-menu">
+            <div class="pedido-menu" data-modulo="pedidos">
                 <button type="button" class="card-menu pedido-botao" id="btnPedidos">
                     <div class="card-icon">🛒</div>
                     <h2>Pedidos</h2>
@@ -46,36 +50,36 @@
                 </div>
             </div>
 
-            <a href="../devolucao/devolucao.html" class="card-menu">
+            <a href="../devolucao/devolucao.html" class="card-menu" data-modulo="devolucoes">
                 <div class="card-icon">↩️</div>
                 <h2>Devoluções</h2>
                 <p>Registrar e consultar devoluções de pedidos.</p>
             </a>
 
-            <a href="../cargo/cargo.html" class="card-menu">
+            <a href="../cargo/cargo.html" class="card-menu" data-modulo="cargos">
                 <div class="card-icon">👔</div>
                 <h2>Cargos</h2>
                 <p>Gerenciar cargos disponíveis no sistema.</p>
             </a>
-             <a href="../unidade_medida/unidade_medida.html" class="card-menu">
+             <a href="../unidade_medida/unidade_medida.html" class="card-menu" data-modulo="unidade_medida">
                 <div class="card-icon">📏</div>
                 <h2>Unidades de Medida</h2>
                 <p>Gerenciar unidades de medida utilizadas no sistema.</p>
             </a>
 
-             <a href="../pessoa/pessoa.html" class="card-menu">
+             <a href="../pessoa/pessoa.html" class="card-menu" data-modulo="pessoas">
                 <div class="card-icon">👥</div>
                 <h2>Pessoas</h2>
                 <p>Gerenciar informações das pessoas cadastradas no sistema.</p>
             </a>
 
-            <a href="../categoria/categoria.html" class="card-menu">
+            <a href="../categoria/categoria.html" class="card-menu" data-modulo="categorias">
                 <div class="card-icon">🏷️</div>
                 <h2>Categorias</h2>
                 <p>Gerenciar categorias dos produtos.</p>
             </a>
 
-            <a href="../forma_pagamento/forma_pagamento.html" class="card-menu">
+            <a href="../forma_pagamento/forma_pagamento.html" class="card-menu" data-modulo="formas_pagamento">
                 <div class="card-icon">🪙</div>
                 <h2>Formas de Pagamento</h2>
                 <p>Gerenciar formas de pagamento cadastradas no sistema.</p>

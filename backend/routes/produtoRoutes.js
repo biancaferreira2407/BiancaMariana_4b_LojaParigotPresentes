@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const produtoController = require('../controllers/produtoController');
-const { autenticar, exigirAdmin } = require('../middlewares/authMiddleware');
+const { autenticar, exigirModulo } = require('../middlewares/authMiddleware');
 
 // Configura o Multer para armazenar em memória temporária para o Sharp processar.
 // Limite de 5 MB e somente imagens.
@@ -19,13 +19,13 @@ const upload = multer({
 router.get('/listar', produtoController.listarProdutos);
 
 // Demais operações do CRUD: somente administração.
-router.get('/:id', autenticar, exigirAdmin, produtoController.obterProduto);
-router.post('/', autenticar, exigirAdmin, produtoController.criarProduto);
-router.put('/:id', autenticar, exigirAdmin, produtoController.atualizarProduto);
-router.delete('/:id', autenticar, exigirAdmin, produtoController.deletarProduto);
+router.get('/:id', autenticar, exigirModulo('produtos'), produtoController.obterProduto);
+router.post('/', autenticar, exigirModulo('produtos'), produtoController.criarProduto);
+router.put('/:id', autenticar, exigirModulo('produtos'), produtoController.atualizarProduto);
+router.delete('/:id', autenticar, exigirModulo('produtos'), produtoController.deletarProduto);
 
 // Rota para upload da imagem
-router.post('/upload/:id', autenticar, exigirAdmin, (req, res, next) => {
+router.post('/upload/:id', autenticar, exigirModulo('produtos'), (req, res, next) => {
     upload.single('imagem')(req, res, erro => {
         if (erro) return res.status(400).json({ sucesso: false, mensagem: erro.message });
         next();
