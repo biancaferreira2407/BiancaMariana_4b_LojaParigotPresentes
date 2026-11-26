@@ -7,7 +7,7 @@
 --                                     + status padrão "Não confirmado")
 --   * migracao_status_pedidos.sql    (status padronizados: pagamento
 --                                     Não confirmado/Confirmado; pedido
---                                     Não confirmado/Em andamento/Entregando/Entregue)
+--                                     Não confirmado/Em andamento/Pedido pronto/Entregue)
 -- As migrações NÃO precisam mais ser rodadas: elas servem só para bancos antigos.
 --
 -- COMO USAR (banco novo)
@@ -69,8 +69,11 @@ CREATE TABLE pessoa (
     nome_pessoa VARCHAR(60),
     data_nascimento_pessoa date,
     endereco_pessoa VARCHAR(150),
+    telefone_pessoa VARCHAR(20),
     senha_pessoa VARCHAR(50),
-    email_pessoa VARCHAR(75)
+    email_pessoa VARCHAR(75),
+    -- telefone só com dígitos e DDD (sem 55): 10 (fixo) ou 11 (celular)
+    CONSTRAINT ck_pessoa_telefone CHECK (telefone_pessoa IS NULL OR telefone_pessoa ~ '^[1-9][1-9][0-9]{8,9}$')
 );
 
 

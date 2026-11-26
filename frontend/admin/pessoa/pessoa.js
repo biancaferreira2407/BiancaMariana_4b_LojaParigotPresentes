@@ -14,6 +14,30 @@ const btnSalvar = document.getElementById('btnSalvar');
 const pessoasTableBody = document.getElementById('pessoasTableBody');
 const messageContainer = document.getElementById('messageContainer');
 const inputNome = document.getElementById('nome_pessoa');
+const inputTelefone = document.getElementById('telefone_pessoa');
+
+// Mesma regra do backend: DDD + número (10 dígitos fixo / 11 celular começando com 9).
+function telefoneValido(valor) {
+    const d = String(valor || '').replace(/\D/g, '');
+    if (!/^[1-9][1-9]\d{8,9}$/.test(d)) return false;
+    return d.length === 10 ? /^\d{2}[2-5]/.test(d) : d[2] === '9';
+}
+
+function mascararTelefone(valor) {
+    const t = String(valor || '').replace(/\D/g, '').slice(0, 11);
+    if (t.length <= 2) return t;
+    if (t.length <= 6) return `(${t.slice(0, 2)}) ${t.slice(2)}`;
+    // 11 dígitos (celular) = 5+4; até 10 dígitos (fixo ou ainda digitando) = 4+resto.
+    const corte = t.length === 11 ? 7 : 6;
+    return `(${t.slice(0, 2)}) ${t.slice(2, corte)}-${t.slice(corte)}`;
+}
+
+function escapeHtml(valor) {
+    return String(valor ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 
 // Carregar lista de pessoas e popular menu de cargos ao inicializar
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,6 +56,10 @@ btnSalvar.addEventListener('click', salvarOperacao);
 
 inputNome.addEventListener('input', function () {
     this.value = this.value.replace(/[^A-Za-zÀ-ÿ\s]/g, '');
+});
+
+inputTelefone.addEventListener('input', function () {
+    this.value = mascararTelefone(this.value);
 });
 
 searchId.addEventListener('input', function () {
@@ -205,6 +233,7 @@ async function preencherFormulario(pessoa) {
         document.getElementById('data_nascimento').value = '';
     }
     document.getElementById('endereco_pessoa').value = pessoa.endereco_pessoa || '';
+    inputTelefone.value = mascararTelefone(pessoa.telefone_pessoa);
     const campoSenha = document.getElementById('senha_pessoa');
     campoSenha.value = '••••••••';
     campoSenha.disabled = true;
@@ -285,6 +314,7 @@ async function salvarOperacao() {
         nome_pessoa: formData.get('nome_pessoa'),
         data_nascimento_pessoa: converterDataParaISO(formData.get('data_nascimento')) || null,
         endereco_pessoa: formData.get('endereco_pessoa'),
+        telefone_pessoa: String(formData.get('telefone_pessoa') || '').replace(/\D/g, ''),
         ...(operacao === 'incluir'
             ? { senha_pessoa: formData.get('senha_pessoa') }
             : {}),
@@ -293,6 +323,12 @@ async function salvarOperacao() {
 
     if (cpf.length !== 11) {
         mostrarMensagem('O CPF deve ter exatamente 11 dígitos.', 'warning');
+        return;
+    }
+
+    if ((operacao === 'incluir' || operacao === 'alterar') && !telefoneValido(pessoa.telefone_pessoa)) {
+        mostrarMensagem('Informe um telefone válido com DDD, por exemplo (44) 99999-9999.', 'warning');
+        inputTelefone.focus();
         return;
     }
 
@@ -504,11 +540,12 @@ function renderizarTabelaPessoas(pessoas) {
                     ${pessoa.cpf_pessoa}
                 </button>
             </td>
-            <td>${pessoa.nome_pessoa}</td>
-            <td>${formatarData(pessoa.data_nascimento_pessoa)}</td>                 
-            <td>${pessoa.endereco_pessoa}</td>
+            <td>${escapeHtml(pessoa.nome_pessoa)}</td>
+            <td>${formatarData(pessoa.data_nascimento_pessoa)}</td>
+            <td>${escapeHtml(pessoa.endereco_pessoa)}</td>
+            <td>${escapeHtml(mascararTelefone(pessoa.telefone_pessoa) || '-')}</td>
             <td>••••••••</td>
-            <td>${pessoa.email_pessoa}</td>
+            <td>${escapeHtml(pessoa.email_pessoa)}</td>
         `;
         pessoasTableBody.appendChild(row);
     });

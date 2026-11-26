@@ -19,6 +19,28 @@ campoCpf.addEventListener('input', () => {
     campoCpf.value = cpf;
 });
 
+// Mesma regra do backend: DDD + número (10 dígitos fixo / 11 celular começando com 9).
+function telefoneValido(valor) {
+    const d = String(valor || '').replace(/\D/g, '');
+    if (!/^[1-9][1-9]\d{8,9}$/.test(d)) return false;
+    return d.length === 10 ? /^\d{2}[2-5]/.test(d) : d[2] === '9';
+}
+
+function mascararTelefone(valor) {
+    const t = String(valor || '').replace(/\D/g, '').slice(0, 11);
+    if (t.length <= 2) return t;
+    if (t.length <= 6) return `(${t.slice(0, 2)}) ${t.slice(2)}`;
+    // 11 dígitos (celular) = 5+4; até 10 dígitos (fixo ou ainda digitando) = 4+resto.
+    const corte = t.length === 11 ? 7 : 6;
+    return `(${t.slice(0, 2)}) ${t.slice(2, corte)}-${t.slice(corte)}`;
+}
+
+// Formata o telefone enquanto a pessoa digita: (44) 99999-9999.
+const campoTelefone = document.getElementById('telefone_pessoa');
+campoTelefone.addEventListener('input', () => {
+    campoTelefone.value = mascararTelefone(campoTelefone.value);
+});
+
 // Mostrar ou ocultar cada campo de senha.
 document.querySelectorAll('.alternar-senha').forEach(botao => {
     botao.addEventListener('click', () => {
@@ -66,6 +88,12 @@ formCadastro.addEventListener('submit', async evento => {
         return;
     }
 
+    if (!telefoneValido(campoTelefone.value)) {
+        mensagemCadastro.textContent = 'Digite um telefone válido com DDD.';
+        campoTelefone.focus();
+        return;
+    }
+
     if (senha.length < 8) {
         mensagemCadastro.textContent = 'A senha deve ter pelo menos 8 caracteres.';
         document.getElementById('senha_pessoa').focus();
@@ -83,6 +111,7 @@ formCadastro.addEventListener('submit', async evento => {
         nome_pessoa: document.getElementById('nome_pessoa').value.trim(),
         data_nascimento_pessoa: campoDataNascimento.value,
         endereco_pessoa: document.getElementById('endereco_pessoa').value.trim(),
+        telefone_pessoa: document.getElementById('telefone_pessoa').value.replace(/\D/g, ''),
         email_pessoa: document.getElementById('email_pessoa').value.trim(),
         senha_pessoa: senha
     };

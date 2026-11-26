@@ -1,6 +1,6 @@
 const URL_API = 'http://localhost:3001';
 
-const STATUS_PEDIDO = ['Em andamento', 'Entregando', 'Entregue'];
+const STATUS_PEDIDO = ['Em andamento', 'Pedido pronto', 'Entregue'];
 
 let pedidos = [];
 let abaAtual = 'nao_confirmado';
@@ -30,7 +30,7 @@ function pagamentoConfirmado(pedido) {
 function statusPedidoNormalizado(pedido) {
     const s = semAcento(pedido.status_pedido);
     if (s === 'entregue' || s === 'concluido') return 'Entregue';
-    if (s === 'entregando') return 'Entregando';
+    if (s === 'pedido pronto' || s === 'entregando') return 'Pedido pronto'; // "Entregando" = pedidos antigos
     return 'Em andamento';
 }
 
@@ -107,7 +107,7 @@ function renderizar() {
                 </td>
                 <td><div class="gp-acoes">
                     <button type="button" class="gp-btn" data-detalhes="${p.id_pedido}">👁 Detalhes</button>
-                    <button type="button" class="gp-btn gp-desfazer" data-desfazer="${p.id_pedido}" ${entregue ? 'disabled title="Pedido já entregue: mude o status para Entregando ou Em andamento antes de desfazer."' : 'title="Voltar este pedido para Pagamento não confirmado"'}>↩ Desfazer confirmação</button>
+                    <button type="button" class="gp-btn gp-desfazer" data-desfazer="${p.id_pedido}" ${entregue ? 'disabled title="Pedido já entregue: mude o status para Pedido pronto ou Em andamento antes de desfazer."' : 'title="Voltar este pedido para Pagamento não confirmado"'}>↩ Desfazer confirmação</button>
                 </div></td>
             </tr>`;
         }
@@ -122,7 +122,7 @@ function renderizar() {
 }
 
 function classeStatus(status) {
-    return { 'Em andamento': 'gp-andamento', 'Entregando': 'gp-entregando', 'Entregue': 'gp-entregue' }[status] || '';
+    return { 'Em andamento': 'gp-andamento', 'Pedido pronto': 'gp-pronto', 'Entregue': 'gp-entregue' }[status] || '';
 }
 
 /* ---------- Ações ---------- */
@@ -132,10 +132,31 @@ function mostrarMensagem(texto, tipo) {
     mensagem.className = 'gp-msg' + (tipo === 'ok' ? ' gp-ok' : tipo === 'erro' ? ' gp-erro' : '');
 }
 
+// Monta o link do WhatsApp (wa.me) com a mensagem já digitada. Ele só ABRE a conversa:
+// quem envia é o gerente, apertando o botão de enviar no próprio WhatsApp.
+function telefoneParaWhatsapp(telefone) {
+    let t = String(telefone ?? '').replace(/\D/g, '');
+    if (t.length === 10 || t.length === 11) t = '55' + t; // DDD + número => acrescenta o DDI do Brasil
+    return t.length >= 12 && t.length <= 13 ? t : null;
+}
+
+function linkWhatsappPedidoConfirmado(telefone, recebimento) {
+    const numero = telefoneParaWhatsapp(telefone);
+    if (!numero) return null;
+    // Pedido para retirada na loja não tem "entrega": o prazo passa a ser o de retirada.
+    const prazo = recebimento === 'retirada' ? 'prazo de retirada' : 'prazo de entrega';
+    const texto = `olá, tudo bem?\nseu pedido foi confirmado.\n${prazo}: `;
+    return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+}
+
 async function confirmarPagamento(id, botao) {
     const pedido = pedidos.find(p => Number(p.id_pedido) === Number(id));
     const cliente = pedido ? ` de ${pedido.nome_cliente || 'cliente'}` : '';
-    if (!confirm(`Confirmar que o pagamento do pedido #${id}${cliente} foi recebido?\n\nO pedido passará para "Em andamento".`)) return;
+    if (!confirm(`Confirmar que o pagamento do pedido #${id}${cliente} foi recebido?\n\nO pedido passará para "Em andamento" e o WhatsApp do cliente será aberto com a mensagem pronta (você decide quando enviar).`)) return;
+
+    // A aba precisa ser aberta já no clique, senão o navegador bloqueia o pop-up depois do fetch.
+    const abaWhatsapp = window.open('', '_blank');
+    if (abaWhatsapp) abaWhatsapp.document.title = 'Abrindo WhatsApp...';
 
     if (botao) botao.disabled = true;
     mostrarMensagem('');
@@ -143,10 +164,27 @@ async function confirmarPagamento(id, botao) {
         const resposta = await fetch(`${URL_API}/pedido/${id}/confirmar-pagamento`, { method: 'PATCH' });
         const dados = await resposta.json();
         if (!resposta.ok || !dados.sucesso) throw new Error(dados.mensagem || 'Não foi possível confirmar o pagamento.');
+
+        // O telefone vem do cadastro do cliente (pedido da lista ou, se aberto pelo modal, dos detalhes).
+        const telefone = pedido?.telefone_cliente ?? (pedidoAberto && Number(pedidoAberto.id_pedido) === Number(id) ? pedidoAberto.telefone_cliente : null);
+        const detalhe = pedidoAberto && Number(pedidoAberto.id_pedido) === Number(id) ? pedidoAberto : null;
+        const link = linkWhatsappPedidoConfirmado(telefone, pedido?.entrega_ou_retirada ?? detalhe?.entrega_ou_retirada);
+
         fecharModal();
-        mostrarMensagem(`Pagamento do pedido #${id} confirmado. Ele agora está na aba "Pagamento confirmado" como "Em andamento".`, 'ok');
+        let aviso = `Pagamento do pedido #${id} confirmado. Ele agora está na aba "Pagamento confirmado" como "Em andamento".`;
+        if (link && abaWhatsapp) {
+            abaWhatsapp.location.href = link;
+            aviso += ' O WhatsApp foi aberto com a mensagem pronta: preencha o prazo de entrega e envie.';
+        } else {
+            if (abaWhatsapp) abaWhatsapp.close();
+            aviso += link
+                ? ' O navegador bloqueou a abertura do WhatsApp: permita pop-ups para este site.'
+                : ' Este cliente não tem telefone válido cadastrado, então o WhatsApp não foi aberto.';
+        }
+        mostrarMensagem(aviso, 'ok');
         await carregarPedidos();
     } catch (erro) {
+        if (abaWhatsapp) abaWhatsapp.close();
         mostrarMensagem(erro.message, 'erro');
         if (botao) botao.disabled = false;
     }

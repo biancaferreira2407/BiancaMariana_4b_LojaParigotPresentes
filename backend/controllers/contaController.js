@@ -1,4 +1,5 @@
 const { query } = require('../database');
+const { normalizarTelefone, telefoneValido, MENSAGEM_TELEFONE } = require('../utils/telefone');
 
 // Retorna somente os dados da pessoa que está autenticada.
 exports.obterMinhaConta = async (req, res) => {
@@ -11,7 +12,7 @@ exports.obterMinhaConta = async (req, res) => {
 
         const resultado = await query(
             `SELECT p.cpf_pessoa, p.nome_pessoa, p.data_nascimento_pessoa,
-                    p.endereco_pessoa, p.email_pessoa
+                    p.endereco_pessoa, p.telefone_pessoa, p.email_pessoa
              FROM pessoa p
              INNER JOIN cliente c ON c.pessoa_cpf_pessoa = p.cpf_pessoa
              WHERE p.cpf_pessoa = $1`,
@@ -33,7 +34,7 @@ exports.obterMinhaConta = async (req, res) => {
 exports.atualizarMinhaConta = async (req, res) => {
     try {
         const cpf = req.usuario.cpf;
-        const { nome_pessoa, data_nascimento_pessoa, endereco_pessoa, email_pessoa, senha_atual } = req.body;
+        const { nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa, senha_atual } = req.body;
 
         if (!cpf) {
             return res.status(401).json({ sucesso: false, mensagem: 'Token sem identificação de usuário.' });
@@ -46,10 +47,15 @@ exports.atualizarMinhaConta = async (req, res) => {
         const nome = typeof nome_pessoa === 'string' ? nome_pessoa.trim() : '';
         const email = typeof email_pessoa === 'string' ? email_pessoa.trim().toLowerCase() : '';
         const endereco = typeof endereco_pessoa === 'string' ? endereco_pessoa.trim() : '';
+        const telefone = normalizarTelefone(telefone_pessoa);
         const nascimento = data_nascimento_pessoa || null;
 
+        if (!telefoneValido(telefone)) {
+            return res.status(400).json({ sucesso: false, mensagem: MENSAGEM_TELEFONE });
+        }
+
         if (!nome || !email || !endereco) {
-            return res.status(400).json({ sucesso: false, mensagem: 'Nome, e-mail e endereço são obrigatórios.' });
+            return res.status(400).json({ sucesso: false, mensagem: 'Nome, e-mail, endereço e telefone são obrigatórios.' });
         }
 
         if (nome.length > 60 || endereco.length > 150 || email.length > 75) {
@@ -94,11 +100,12 @@ exports.atualizarMinhaConta = async (req, res) => {
              SET nome_pessoa = $1,
                  data_nascimento_pessoa = $2,
                  endereco_pessoa = $3,
-                 email_pessoa = $4
-             WHERE cpf_pessoa = $5
+                 email_pessoa = $4,
+                 telefone_pessoa = $5
+             WHERE cpf_pessoa = $6
              RETURNING cpf_pessoa, nome_pessoa, data_nascimento_pessoa,
-                       endereco_pessoa, email_pessoa`,
-            [nome, nascimento, endereco, email, cpf]
+                       endereco_pessoa, telefone_pessoa, email_pessoa`,
+            [nome, nascimento, endereco, email, telefone, cpf]
         );
 
         return res.json({

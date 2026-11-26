@@ -276,6 +276,7 @@ exports.listarPedidos = async (req, res) => {
                 p.endereco_entrega,
                 p.status_pedido,
                 pc.nome_pessoa AS nome_cliente,
+                pc.telefone_pessoa AS telefone_cliente,
                 pf.nome_pessoa AS nome_funcionario,
                 pg.valor_total_pagamento AS valor_total,
                 pg.subtotal_produtos,
@@ -316,6 +317,7 @@ exports.obterPedido = async (req, res) => {
                 p.endereco_entrega,
                 p.status_pedido,
                 pc.nome_pessoa AS nome_cliente,
+                pc.telefone_pessoa AS telefone_cliente,
                 pf.nome_pessoa AS nome_funcionario,
                 pg.valor_total_pagamento AS valor_total,
                 pg.subtotal_produtos,
@@ -469,10 +471,10 @@ exports.avisarPagamento = async (req, res) => {
 };
 
 const STATUS_PAGAMENTO_CONFIRMADO = ['Confirmado', 'Pago']; // "Pago" = pedidos antigos do balcão
-const STATUS_PEDIDO_PERMITIDOS = ['Em andamento', 'Entregando', 'Entregue'];
+const STATUS_PEDIDO_PERMITIDOS = ['Em andamento', 'Pedido pronto', 'Entregue'];
 
 // Admin confirma que conferiu o pagamento. O pagamento vira "Confirmado" e o pedido
-// passa a "Em andamento" (a partir daí o admin escolhe: Entregando / Entregue).
+// passa a "Em andamento" (a partir daí o admin escolhe: Pedido pronto / Entregue).
 exports.confirmarPagamento = async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
@@ -534,7 +536,7 @@ exports.atualizarStatusPedido = async (req, res) => {
         return res.status(400).json({ sucesso: false, mensagem: 'ID do pedido inválido.' });
     }
     if (!STATUS_PEDIDO_PERMITIDOS.includes(status)) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Status inválido. Use: Em andamento, Entregando ou Entregue.' });
+        return res.status(400).json({ sucesso: false, mensagem: 'Status inválido. Use: Em andamento, Pedido pronto ou Entregue.' });
     }
     try {
         const atual = await pool.query(
@@ -556,7 +558,7 @@ exports.atualizarStatusPedido = async (req, res) => {
 };
 
 // Admin desfaz uma confirmação feita por engano: pagamento e pedido voltam a "Não confirmado".
-// Não permite desfazer pedido já "Entregue" (primeiro volte o status para Entregando/Em andamento).
+// Não permite desfazer pedido já "Entregue" (primeiro volte o status para Pedido pronto/Em andamento).
 exports.desfazerConfirmacaoPagamento = async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
@@ -583,7 +585,7 @@ exports.desfazerConfirmacaoPagamento = async (req, res) => {
         const entregue = ['entregue', 'concluido', 'concluído'].includes(String(status_pedido || '').toLowerCase());
         if (entregue) {
             await client.query('ROLLBACK');
-            return res.status(409).json({ sucesso: false, mensagem: 'Este pedido já foi entregue. Altere o status para "Entregando" ou "Em andamento" antes de desfazer a confirmação.' });
+            return res.status(409).json({ sucesso: false, mensagem: 'Este pedido já foi entregue. Altere o status para "Pedido pronto" ou "Em andamento" antes de desfazer a confirmação.' });
         }
         await client.query(`UPDATE public.pagamento SET status_pagamento = 'Não confirmado', data_pagamento = NULL WHERE pedido_id_pedido = $1`, [id]);
         // Sem confirmação não há valor efetivamente pago (o valor previsto continua guardado).

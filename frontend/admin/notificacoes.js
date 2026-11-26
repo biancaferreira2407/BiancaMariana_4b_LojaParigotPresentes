@@ -168,7 +168,7 @@
             <div class="ntf-total"><span>Total do pedido${taxas.length ? ` <small style="font-weight:500">(inclui ${esc(taxas.join(', '))})</small>` : ''}</span><span>${moeda(n.valor_total)}</span></div>
 
             <div class="ntf-status">
-                <span class="ntf-selo">Pedido: ${esc(n.status_pedido || 'Não confirmado')}</span>
+                <span class="ntf-selo">Pedido: ${esc(String(n.status_pedido || 'Não confirmado').replace(/^entregando$/i, 'Pedido pronto'))}</span>
                 <span class="ntf-selo">Pagamento: ${esc(n.status_pagamento || 'Não confirmado')}</span>
             </div>
 
