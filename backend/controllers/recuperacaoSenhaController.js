@@ -26,7 +26,7 @@ function compararHash(valor, hashSalvo) {
 }
 
 // Envia o código por e-mail
-async function enviarCodigo(email, codigo) {
+async function enviarCodigo(email, codigo, primeiroAcesso = false) {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
         throw new Error('As configurações do Gmail não foram preenchidas.');
     }
@@ -34,14 +34,16 @@ async function enviarCodigo(email, codigo) {
     await transporter.sendMail({
         from: `"Parigot Presentes" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: 'Código para recuperação de senha',
+        subject: primeiroAcesso ? 'Código para criar sua senha' : 'Código para recuperação de senha',
         html: `
             <div style="font-family: Arial, sans-serif; color: #4D3328;">
                 <h2 style="color: #CC6060;">Parigot Presentes</h2>
 
-                <p>Recebemos uma solicitação para recuperar sua senha.</p>
+                <p>${primeiroAcesso
+                    ? 'Seu cadastro foi criado na Parigot Presentes. Use o código abaixo para criar a sua senha de acesso.'
+                    : 'Recebemos uma solicitação para recuperar sua senha.'}</p>
 
-                <p>Seu código de recuperação é:</p>
+                <p>Seu código de ${primeiroAcesso ? 'verificação' : 'recuperação'} é:</p>
 
                 <h1 style="
                     color: #CC6060;
@@ -51,7 +53,7 @@ async function enviarCodigo(email, codigo) {
 
                 <p>Esse código é válido por 10 minutos.</p>
 
-                <p>Se você não solicitou essa alteração, ignore este e-mail.</p>
+                <p>Se você não solicitou isso, ignore este e-mail.</p>
             </div>
         `
     });
@@ -77,7 +79,7 @@ exports.solicitarCodigo = async (req, res) => {
 
         // Verifica se existe uma pessoa com esse e-mail
         const pessoa = await query(
-            `SELECT email_pessoa
+            `SELECT email_pessoa, (senha_pessoa IS NULL) AS primeiro_acesso
              FROM pessoa
              WHERE LOWER(email_pessoa) = $1`,
             [email]
@@ -138,7 +140,7 @@ exports.solicitarCodigo = async (req, res) => {
             [email, codigoHash]
         );
 
-        await enviarCodigo(email, codigo);
+        await enviarCodigo(email, codigo, pessoa.rows[0].primeiro_acesso);
 
         return res.json({
             sucesso: true,

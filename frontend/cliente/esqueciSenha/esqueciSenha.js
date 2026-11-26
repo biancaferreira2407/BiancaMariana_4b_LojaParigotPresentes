@@ -10,6 +10,10 @@ const mensagem = document.getElementById('mensagem');
 let emailRecuperacao = '';
 let codigoVerificado = '';
 
+// Primeiro acesso: cadastro feito pelo admin, sem senha. Mesmo fluxo do "esqueci senha".
+const params = new URLSearchParams(window.location.search);
+const primeiroAcesso = params.get('primeiroAcesso') === '1';
+
 function mostrarEtapa(etapa) {
     formEmail.classList.add('escondido');
     formCodigo.classList.add('escondido');
@@ -28,7 +32,10 @@ function mostrarMensagem(texto, tipo) {
 // ETAPA 1: SOLICITAR CÓDIGO
 formEmail.addEventListener('submit', async (e) => {
     e.preventDefault();
+    await solicitarCodigo();
+});
 
+async function solicitarCodigo() {
     emailRecuperacao = document.getElementById('email').value.trim();
 
     try {
@@ -57,7 +64,7 @@ formEmail.addEventListener('submit', async (e) => {
     } catch (erro) {
         mostrarMensagem(erro.message, 'erro');
     }
-});
+}
 
 // ETAPA 2: VERIFICAR CÓDIGO
 formCodigo.addEventListener('submit', async (e) => {
@@ -136,7 +143,9 @@ formSenha.addEventListener('submit', async (e) => {
         mostrarEtapa(formSenha);
         formSenha.classList.add('escondido');
 
-        mostrarMensagem('Senha alterada com sucesso! Você será redirecionado para o login.', 'sucesso');
+        mostrarMensagem(primeiroAcesso
+            ? 'Senha criada com sucesso! Você será redirecionado para o login.'
+            : 'Senha alterada com sucesso! Você será redirecionado para o login.', 'sucesso');
 
         setTimeout(() => {
             window.location.href = '../login/login.html';
@@ -146,3 +155,19 @@ formSenha.addEventListener('submit', async (e) => {
         mostrarMensagem(erro.message, 'erro');
     }
 });
+
+// Ao chegar do login como primeiro acesso: ajusta os textos, preenche o e-mail e já envia o código.
+if (primeiroAcesso) {
+    document.title = 'Criar senha | Parigot Presentes';
+    document.getElementById('titulo').textContent = 'Crie sua senha';
+    document.getElementById('descricao').textContent =
+        'Seu cadastro ainda não tem senha. Vamos enviar um código de verificação ao seu e-mail para você criar a sua.';
+    document.getElementById('btnSenha').textContent = 'Criar senha';
+    document.getElementById('novaSenha').placeholder = 'Digite a senha que deseja usar';
+
+    const emailParam = (params.get('email') || '').trim();
+    if (emailParam) {
+        document.getElementById('email').value = emailParam;
+        solicitarCodigo();
+    }
+}

@@ -16,12 +16,20 @@ campoCep.addEventListener('input', () => {
     if (digitos.length === 8) consultarCep(digitos);
 });
 
+// Só aceita CEPs de Campo Mourão - PR (código IBGE 4104303).
+function cepDeCampoMourao(dados) {
+    if (dados.ibge) return String(dados.ibge) === '4104303';
+    const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    return semAcento(dados.localidade) === 'campo mourao' && String(dados.uf || '').toUpperCase() === 'PR';
+}
+
 async function consultarCep(cep) {
     mensagemCep.textContent = 'Consultando CEP...';
     try {
         const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const dados = await resposta.json();
         if (!resposta.ok || dados.erro) throw new Error('CEP não encontrado.');
+        if (!cepDeCampoMourao(dados)) throw new Error('Só atendemos Campo Mourão - PR. Informe um CEP da cidade.');
         enderecoViaCep = dados;
         campoEndereco.value = [dados.logradouro, dados.bairro, dados.localidade, dados.uf].filter(Boolean).join(', ');
         mensagemCep.textContent = 'Endereço encontrado. Informe apenas o número da residência.';

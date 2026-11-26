@@ -31,6 +31,15 @@ exports.login = async (req, res) => {
             [email_pessoa]
         );
 
+        // Cadastrada pelo admin e ainda sem senha: precisa criar a senha (código por e-mail).
+        if (resultado.rows.length > 0 && !resultado.rows[0].senha_pessoa) {
+            return res.status(403).json({
+                sucesso: false,
+                primeiroAcesso: true,
+                mensagem: 'Primeiro acesso: vamos enviar um código ao seu e-mail para você criar sua senha.'
+            });
+        }
+
         if (
             resultado.rows.length === 0 ||
             resultado.rows[0].senha_pessoa !== senha_pessoa

@@ -70,12 +70,19 @@ inputCep.addEventListener('input', () => {
     dadosCepPessoa = null; inputEndereco.value = '';
     if (cep.length === 8) consultarCepPessoa(cep);
 });
+// Só aceita CEPs de Campo Mourão - PR (código IBGE 4104303).
+function cepDeCampoMourao(dados) {
+    if (dados.ibge) return String(dados.ibge) === '4104303';
+    const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    return semAcento(dados.localidade) === 'campo mourao' && String(dados.uf || '').toUpperCase() === 'PR';
+}
 async function consultarCepPessoa(cep) {
     mensagemCepPessoa.textContent = 'Consultando CEP...';
     try {
         const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const dados = await resposta.json();
         if (!resposta.ok || dados.erro) throw new Error('CEP não encontrado.');
+        if (!cepDeCampoMourao(dados)) throw new Error('Só é possível cadastrar endereços de Campo Mourão - PR.');
         dadosCepPessoa = dados;
         inputEndereco.value = [dados.logradouro, inputNumeroCasa.value.trim(), dados.bairro, `${dados.localidade}/${dados.uf}`].filter(Boolean).join(', ');
         mensagemCepPessoa.textContent = 'Endereço encontrado.';
@@ -265,9 +272,6 @@ async function preencherFormulario(pessoa) {
     inputNumeroCasa.value = (pessoa.endereco_pessoa || '').match(/,\s*(\d+[A-Za-z]?)\s*-/)?.[1] || '';
     dadosCepPessoa = null;
     inputTelefone.value = mascararTelefone(pessoa.telefone_pessoa);
-    const campoSenha = document.getElementById('senha_pessoa');
-    campoSenha.value = '••••••••';
-    campoSenha.disabled = true;
     document.getElementById('email_pessoa').value = pessoa.email_pessoa || '';
 
     // Verifica funcionário
@@ -304,9 +308,6 @@ async function incluirPessoa() {
     searchId.value = currentPersonId;
     bloquearCampos(true);
 
-    const campoSenha = document.getElementById('senha_pessoa');
-    campoSenha.value = '';
-    campoSenha.disabled = false;
 
     mostrarBotoes(false, false, false, false, true, true);
     document.getElementById('nome_pessoa').focus();
@@ -317,9 +318,6 @@ async function alterarPessoa() {
     mostrarMensagem('Digite os dados!', 'success');
     bloquearCampos(true);
 
-    const campoSenha = document.getElementById('senha_pessoa');
-    campoSenha.value = '••••••••';
-    campoSenha.disabled = true;
 
     mostrarBotoes(false, false, false, false, true, true);
     document.getElementById('nome_pessoa').focus();
@@ -347,9 +345,6 @@ async function salvarOperacao() {
         cep_pessoa: String(formData.get('cep_pessoa') || '').replace(/\D/g, ''),
         endereco_pessoa: formData.get('endereco_pessoa'),
         telefone_pessoa: String(formData.get('telefone_pessoa') || '').replace(/\D/g, ''),
-        ...(operacao === 'incluir'
-            ? { senha_pessoa: formData.get('senha_pessoa') }
-            : {}),
         email_pessoa: formData.get('email_pessoa')
     };
 
@@ -581,7 +576,7 @@ function renderizarTabelaPessoas(pessoas) {
             <td>${formatarData(pessoa.data_nascimento_pessoa)}</td>
             <td>${escapeHtml(pessoa.endereco_pessoa)}</td>
             <td>${escapeHtml(mascararTelefone(pessoa.telefone_pessoa) || '-')}</td>
-            <td>••••••••</td>
+            <td>${pessoa.senha_pendente ? 'Pendente (1º acesso)' : 'Definida'}</td>
             <td>${escapeHtml(pessoa.email_pessoa)}</td>
         `;
         pessoasTableBody.appendChild(row);

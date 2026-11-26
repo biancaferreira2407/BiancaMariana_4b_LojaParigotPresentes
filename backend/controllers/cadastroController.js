@@ -2,6 +2,7 @@
 const { pool } = require('../database');
 const { normalizarTelefone, telefoneValido, MENSAGEM_TELEFONE } = require('../utils/telefone');
 const { formatarNome, nomeValido, MENSAGEM_NOME } = require('../utils/nome');
+const { validarCepCampoMourao } = require('../utils/cep');
 
 // Validar os dígitos do CPF
 function validarCPF(cpf) {
@@ -66,6 +67,12 @@ exports.cadastrarCliente = async (req, res) => {
                 sucesso: false,
                 mensagem: 'Preencha todos os campos.'
             });
+        }
+
+        // Só atendemos Campo Mourão - PR.
+        const cepCheck = await validarCepCampoMourao(cep);
+        if (!cepCheck.valido) {
+            return res.status(400).json({ sucesso: false, mensagem: cepCheck.mensagem });
         }
 
         if (!nomeValido(nome)) {

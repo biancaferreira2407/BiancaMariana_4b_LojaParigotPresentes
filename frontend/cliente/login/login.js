@@ -77,6 +77,12 @@ formLogin.addEventListener('submit', async (evento) => {
 
         const dados = await resposta.json();
 
+        // Cadastro feito pelo admin, sem senha: segue para criar a senha com código por e-mail.
+        if (dados.primeiroAcesso) {
+            window.location.href = `../esqueciSenha/esqueciSenha.html?primeiroAcesso=1&email=${encodeURIComponent(usuario)}`;
+            return;
+        }
+
         if (!resposta.ok) {
             mensagemLogin.textContent = dados.mensagem;
             return;

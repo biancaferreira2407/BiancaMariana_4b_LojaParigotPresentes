@@ -1,12 +1,13 @@
 const { query } = require('../database');
 const { normalizarTelefone, telefoneValido, MENSAGEM_TELEFONE } = require('../utils/telefone');
 const { formatarNome, nomeValido, MENSAGEM_NOME } = require('../utils/nome');
+const { validarCepCampoMourao } = require('../utils/cep');
 
 
 
 exports.listarPessoas = async (req, res) => {
   try {
-    const result = await query('SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa FROM pessoa ORDER BY cpf_pessoa');
+    const result = await query('SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa, (senha_pessoa IS NULL) AS senha_pendente FROM pessoa ORDER BY cpf_pessoa');
     res.json({ sucesso: true, pessoas: result.rows });
   } catch (error) {
     console.error('Erro ao listar pessoas:', error);
@@ -16,20 +17,22 @@ exports.listarPessoas = async (req, res) => {
 
 exports.criarPessoa = async (req, res) => {
   try {
-    const { cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa } = req.body;
+    const { cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa } = req.body;
 
+    // A senha NÃO é definida pelo admin: a própria pessoa cria no primeiro login, confirmando o código enviado ao e-mail.
     const nomeFormatado = formatarNome(nome_pessoa);
     if (!nomeFormatado || !nomeValido(nomeFormatado)) return res.status(400).json({ sucesso: false, mensagem: MENSAGEM_NOME });
-    if (!nome_pessoa || !endereco_pessoa || !telefone_pessoa || !senha_pessoa || !email_pessoa) {
+    if (!nome_pessoa || !endereco_pessoa || !telefone_pessoa || !email_pessoa) {
       return res.status(400).json({
         sucesso: false,
-        mensagem: 'Nome, email, endereço, telefone e senha são obrigatórios'
+        mensagem: 'Nome, email, endereço, telefone e CEP são obrigatórios'
       });
     }
 
     const cpfLimpo = String(cpf_pessoa || '').replace(/\D/g, '');
     const cepLimpo = String(cep_pessoa || '').replace(/\D/g, '');
-    if (!/^\d{8}$/.test(cepLimpo)) return res.status(400).json({ sucesso: false, mensagem: 'Informe um CEP válido com 8 números.' });
+    const cepCheck = await validarCepCampoMourao(cepLimpo);
+    if (!cepCheck.valido) return res.status(400).json({ sucesso: false, mensagem: cepCheck.mensagem });
     if (!/^\d{11}$/.test(cpfLimpo)) {
       return res.status(400).json({ sucesso: false, mensagem: 'O CPF deve conter exatamente 11 números.' });
     }
@@ -53,8 +56,8 @@ exports.criarPessoa = async (req, res) => {
     }
 
     const result = await query(
-      'INSERT INTO pessoa (cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa',
-      [cpfLimpo, nomeFormatado, data_nascimento_pessoa || null, cepLimpo, endereco_pessoa, telefone, senha_pessoa, email_pessoa]
+      'INSERT INTO pessoa (cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa) VALUES ($1, $2, $3, $4, $5, $6, NULL, $7) RETURNING cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa',
+      [cpfLimpo, nomeFormatado, data_nascimento_pessoa || null, cepLimpo, endereco_pessoa, telefone, email_pessoa]
     );
 
     res.status(201).json({ sucesso: true, pessoa: result.rows[0] });
@@ -106,7 +109,7 @@ exports.obterPessoa = async (req, res) => {
 exports.atualizarPessoa = async (req, res) => {
   try {
     const id = String(req.params.id || '').trim();
-    const { nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa } = req.body;
+    const { nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa } = req.body;
 
     if (cep_pessoa !== undefined && !/^\d{8}$/.test(String(cep_pessoa).replace(/\D/g, ''))) {
       return res.status(400).json({ sucesso: false, mensagem: 'O CEP deve conter exatamente 8 números.' });
@@ -150,6 +153,15 @@ exports.atualizarPessoa = async (req, res) => {
     }
 
     const currentPerson = existingPersonResult.rows[0];
+
+    // Só valida a cidade quando o CEP foi realmente alterado (cadastros antigos podem ser editados sem trocar o CEP).
+    if (cep_pessoa !== undefined) {
+      const cepNovo = String(cep_pessoa).replace(/\D/g, '');
+      if (cepNovo !== String(currentPerson.cep_pessoa || '')) {
+        const cepCheck = await validarCepCampoMourao(cepNovo);
+        if (!cepCheck.valido) return res.status(400).json({ sucesso: false, mensagem: cepCheck.mensagem });
+      }
+    }
     const nomeAtualizado = nome_pessoa !== undefined ? formatarNome(nome_pessoa) : currentPerson.nome_pessoa;
     if (nome_pessoa !== undefined && !nomeValido(nomeAtualizado)) return res.status(400).json({ sucesso: false, mensagem: MENSAGEM_NOME });
     const updatedFields = {
@@ -158,7 +170,7 @@ exports.atualizarPessoa = async (req, res) => {
       cep_pessoa: cep_pessoa !== undefined ? String(cep_pessoa).replace(/\D/g, '') : currentPerson.cep_pessoa,
       endereco_pessoa: endereco_pessoa !== undefined ? endereco_pessoa : currentPerson.endereco_pessoa,
       telefone_pessoa: telefoneNovo !== undefined ? telefoneNovo : currentPerson.telefone_pessoa,
-      senha_pessoa: senha_pessoa !== undefined ? senha_pessoa : currentPerson.senha_pessoa,
+      senha_pessoa: currentPerson.senha_pessoa, // admin nunca altera senha
       email_pessoa: email_pessoa !== undefined ? email_pessoa : currentPerson.email_pessoa
     };
 

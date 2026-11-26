@@ -88,3 +88,15 @@ Execute uma vez `documentacao/migracao_cep_endereco.sql` no banco já utilizado.
 - Os textos e autores dos comentários são enviados somente à rota administrativa. A vitrine pública recebe apenas média e quantidade de avaliações por produto.
 - Para banco existente, executar `documentacao/migracao_historico_comentarios.sql` uma vez. Para banco novo, as tabelas também estão no final de `documentacao/DW_proj_4B.sql`.
 - O servidor cria a tabela de histórico automaticamente ao iniciar. A tabela `comentarios` precisa existir antes de carregar a vitrine; execute a migração no banco existente.
+
+## Senha criada pela própria pessoa (primeiro acesso)
+- Admin (tela Pessoa) não define mais senha: a pessoa é gravada com `senha_pessoa = NULL`. A listagem mostra "Pendente (1º acesso)" ou "Definida". O admin também não altera senhas na edição.
+- Login: se o e-mail existe mas não tem senha, o servidor responde `primeiroAcesso: true` e o front leva para `esqueciSenha.html?primeiroAcesso=1&email=...`.
+- Essa tela envia sozinha o código de 6 dígitos por e-mail (mesmo fluxo/tabela `recuperacao_senha` do "esqueci senha": validade de 10 min, 5 tentativas), a pessoa confirma o código e cria a senha. O e-mail do código tem texto próprio para primeiro acesso.
+- Não precisa de migração: `senha_pessoa` já aceita NULL.
+
+## CEP restrito a Campo Mourão - PR
+- Novo `backend/utils/cep.js` (`validarCepCampoMourao`): recusa CEP fora da faixa 87300-000 a 87319-999 e confirma a cidade no ViaCEP (IBGE 4104303). Se o ViaCEP estiver fora do ar, vale só a faixa.
+- Aplicado no cadastro do cliente (`cadastroController`) e no CRUD de Pessoa do admin (`pessoaController`). Na edição, só valida se o CEP foi alterado, para não travar cadastros antigos.
+- Telas `cadastro.js` e `admin/pessoa/pessoa.js` avisam na hora ("Só atendemos Campo Mourão - PR") e não liberam o endereço.
+- Para mudar a cidade, edite as constantes no topo de `utils/cep.js` e o código IBGE nas duas telas.
