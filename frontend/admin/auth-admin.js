@@ -35,7 +35,8 @@
         '/admin/unidade_medida/': 'unidade_medida',
         '/admin/pessoa/': 'pessoas',
         '/admin/categoria/': 'categorias',
-        '/admin/forma_pagamento/': 'formas_pagamento'
+        '/admin/forma_pagamento/': 'formas_pagamento',
+        '/admin/relatorios/': 'pedidos'
     };
 
     const token = sessionStorage.getItem('token');
@@ -103,3 +104,22 @@
     // Disponível para o botão "Sair" do menu.
     window.sairDoAdmin = irParaLogin;
 })();
+
+
+// CPF, identificadores e quantidades aceitam somente números.
+document.addEventListener('DOMContentLoaded', () => {
+    const seletoresInteiros = 'input[id*="cpf" i], input[name*="cpf" i], input[id*="quantidade" i], input[name*="quantidade" i], input[class*="qtd" i], input[id*="id_" i]:not([id*="unidade_medida" i]), input[name*="id_" i]:not([name*="unidade_medida" i]), #searchId';
+    document.querySelectorAll(seletoresInteiros).forEach(campo => {
+        campo.addEventListener('input', () => { campo.value = campo.value.replace(/\D/g, ''); });
+    });
+    // Campos monetários podem usar centavos; remove letras e símbolos, sem perder o decimal.
+    document.querySelectorAll('input[type="number"]').forEach(campo => {
+        if (campo.matches(seletoresInteiros)) return;
+        campo.addEventListener('input', () => {
+            let valor = campo.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+            const partes = valor.split('.');
+            if (partes.length > 2) valor = partes.shift() + '.' + partes.join('');
+            campo.value = valor;
+        });
+    });
+});

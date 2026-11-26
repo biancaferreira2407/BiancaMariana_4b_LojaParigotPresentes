@@ -25,7 +25,7 @@
                 <div class="search-container">
                     <label for="searchId">Buscar por CPF:</label>
                     <div class="search-input-group">
-                        <input type="text" id="searchId" placeholder="Digite o CPF para buscar">
+                        <input type="text" id="searchId" inputmode="numeric" maxlength="11" placeholder="Digite o CPF para buscar">
                         <button type="button" id="btnBuscar">🔍 Buscar</button>
 
                         <button type="button" id="btnIncluir" class="btn-primary">Incluir</button>
@@ -49,8 +49,17 @@
                         <input type="date" id="data_nascimento" name="data_nascimento">
                     </div>
                     <div class="form-group">
-                        <label for="endereco_pessoa">Endereço:</label>
-                        <input type="text" id="endereco_pessoa" name="endereco_pessoa" required>
+                        <label for="cep_pessoa">CEP:</label>
+                        <input type="text" id="cep_pessoa" name="cep_pessoa" inputmode="numeric" maxlength="9" placeholder="00000-000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="numero_casa">Número da residência:</label>
+                        <input type="text" id="numero_casa" name="numero_casa" maxlength="10" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endereco_pessoa">Endereço localizado pelo CEP:</label>
+                        <input type="text" id="endereco_pessoa" name="endereco_pessoa" readonly required>
+                        <small id="mensagemCepPessoa" aria-live="polite"></small>
                     </div>
 
                     <div class="form-group">
@@ -78,7 +87,7 @@
                         <option value="">Cargo</option>
                     </select>
                     <label for="salario_funcionario">  Salário</label>
-                    <input type="number" id="salario_funcionario" name="salario_funcionario" placeholder="Salário"
+                    <input type="number" min="0" step="0.01" id="salario_funcionario" name="salario_funcionario" placeholder="Salário"
                         style="display: inline;">
                         <label for="porcentagem_comissao_funcionario"> Comissão</label>
                     <input type="text" id="porcentagem_comissao_funcionario" name="porcentagem_comissao_funcionario"
@@ -89,7 +98,7 @@
                     <input type="checkbox" id="checkboxCliente" name="checkboxCliente">
                     <span id="spanCliente">Cliente</span>
                     <label for="renda_cliente">  Renda mensal</label>
-                    <input type="number" id="renda_cliente" name="renda_cliente" placeholder="Renda mensal do cliente"
+                    <input type="number" min="0" step="0.01" id="renda_cliente" name="renda_cliente" placeholder="Renda mensal do cliente"
                         style="display: inline;">
                     <label for="data_cadastro_cliente">Data de cadastro</label>
                     <input type="date" id="data_cadastro_cliente" name="data_cadastro_cliente"
@@ -106,6 +115,7 @@
                         <tr>
                             <th>CPF</th>
                             <th>Nome</th>
+                            <th>CEP</th>
                             <th>Data Nascimento</th>
                             <th>Endereço</th>
                             <th>Telefone</th>

@@ -24,6 +24,8 @@
 BEGIN;
 
 DROP TABLE IF EXISTS
+    historico_movimentacao,
+    comentarios,
     notificacao_admin,
     devolucao_has_produto,
     pagamento_has_forma_pagamento,
@@ -68,6 +70,7 @@ CREATE TABLE pessoa (
     cpf_pessoa VARCHAR(20) NOT NULL PRIMARY KEY,
     nome_pessoa VARCHAR(60),
     data_nascimento_pessoa date,
+    cep_pessoa VARCHAR(8),
     endereco_pessoa VARCHAR(150),
     telefone_pessoa VARCHAR(20),
     senha_pessoa VARCHAR(50),
@@ -581,5 +584,28 @@ SELECT setval(
     true
 )
 FROM public.pedido;
+
+-- Histórico das ações feitas por usuários autenticados (criado também pelo servidor).
+CREATE TABLE historico_movimentacao (
+    id_historico BIGSERIAL PRIMARY KEY,
+    cpf_pessoa VARCHAR(20),
+    descricao VARCHAR(500) NOT NULL,
+    metodo VARCHAR(10) NOT NULL,
+    rota VARCHAR(250) NOT NULL,
+    data_hora TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_historico_data_hora ON historico_movimentacao (data_hora DESC);
+
+-- Avaliações: o cliente pode manter uma avaliação por produto; uma nova edição substitui a anterior.
+CREATE TABLE comentarios (
+    id_comentario BIGSERIAL PRIMARY KEY,
+    cpf_comentador VARCHAR(20) NOT NULL REFERENCES pessoa(cpf_pessoa) ON DELETE CASCADE,
+    id_produto INTEGER NOT NULL REFERENCES produto(id_produto) ON DELETE CASCADE,
+    avaliacao SMALLINT NOT NULL CHECK (avaliacao BETWEEN 1 AND 5),
+    texto_comentario TEXT NOT NULL CHECK (length(trim(texto_comentario)) BETWEEN 1 AND 1500),
+    data_comentario TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_comentario_cliente_produto UNIQUE (cpf_comentador, id_produto)
+);
+CREATE INDEX idx_comentarios_produto ON comentarios (id_produto);
 
 COMMIT;

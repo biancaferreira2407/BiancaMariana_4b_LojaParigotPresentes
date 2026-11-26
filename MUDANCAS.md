@@ -61,3 +61,30 @@
 - Barra de navegação ganhou o botão "Produtos" (volta para a vitrine, sem filtros, de qualquer ponto, inclusive de Pedidos realizados/Devoluções).
 - Categorias: "todas" em minúsculas e frase "Explore por categoria" removida.
 
+
+## Revisão do ADMIN, cadastro por CEP e apresentação da loja
+- Corrigido o caminho do botão **Voltar ao Menu** na tela de Cargos. Os 10 links administrativos de retorno foram verificados e todos apontam para `frontend/admin/menu/menu.html`.
+- No ADMIN, os campos de nome aceitam letras (incluindo acentos) e espaços, e formatam a primeira letra de cada palavra em maiúscula. A API também valida e normaliza o nome.
+- CPF, identificadores numéricos e quantidades recebem somente dígitos no navegador; campos monetários continuam aceitando casas decimais. O identificador da unidade de medida foi preservado como texto porque pode ser uma sigla (por exemplo, KG).
+- No cadastro de pessoa do ADMIN e no cadastro de conta do cliente, o CEP é consultado automaticamente pelo ViaCEP. O usuário informa apenas o número da residência; rua, bairro, cidade e UF são preenchidos a partir do CEP e salvos em `endereco_pessoa`. O CEP de oito dígitos também é armazenado em `pessoa.cep_pessoa`.
+- A tela de pessoas do ADMIN agora mostra também o CEP.
+- Na vitrine, clicar na marca/nome Parigot Presentes abre uma apresentação da loja com o endereço: Rua Eucalipto, nº 64, Conjunto Parigot de Souza, Campo Mourão – PR.
+- O endereço de entrega continua somente para leitura no fluxo de compra. Além disso, o backend ignora qualquer endereço enviado pelo navegador e recupera o endereço diretamente do cadastro associado ao cliente autenticado.
+
+### Atualização necessária do banco existente
+Execute uma vez `documentacao/migracao_cep_endereco.sql` no banco já utilizado. Em banco novo, a coluna `cep_pessoa` já está no `documentacao/DW_proj_4B.sql`. Cadastros antigos ficam com CEP nulo até que o CEP seja preenchido/atualizado; os novos cadastros passam a exigir CEP válido.
+
+### Validações realizadas nesta revisão
+- Todos os arquivos JavaScript passaram por `node --check`.
+- Os links locais das páginas ADMIN foram verificados; nenhum destino de link ficou inexistente.
+- Não foi possível testar visualmente cada tela em um navegador nem executar consultas no banco real deste ambiente. Após aplicar a migração, teste um cadastro novo tanto pelo ADMIN quanto pela tela Criar conta.
+
+## Histórico, ranking de vendas e avaliações de produtos
+
+- Novo módulo administrativo em `frontend/admin/relatorios/relatorios.html`, acessível pelo menu de ADMIN (permissão de pedidos).
+- Histórico de movimentações: registra operações autenticadas de inclusão, alteração e exclusão após resposta bem-sucedida, mostrando data/hora, descrição da rota/ação, nome e CPF da pessoa. Não armazena senhas, tokens ou corpos das requisições.
+- Ranking: soma unidades e valores de pedidos com pagamento confirmado, excluindo pedidos devolvidos.
+- Comentários: clientes autenticados podem avaliar de 1 a 5 estrelas e escrever até 1.500 caracteres. Cada cliente mantém uma avaliação por produto; ao enviar outra, a avaliação anterior daquele produto é atualizada.
+- Os textos e autores dos comentários são enviados somente à rota administrativa. A vitrine pública recebe apenas média e quantidade de avaliações por produto.
+- Para banco existente, executar `documentacao/migracao_historico_comentarios.sql` uma vez. Para banco novo, as tabelas também estão no final de `documentacao/DW_proj_4B.sql`.
+- O servidor cria a tabela de histórico automaticamente ao iniciar. A tabela `comentarios` precisa existir antes de carregar a vitrine; execute a migração no banco existente.

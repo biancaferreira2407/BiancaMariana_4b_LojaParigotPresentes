@@ -1,11 +1,12 @@
 const { query } = require('../database');
 const { normalizarTelefone, telefoneValido, MENSAGEM_TELEFONE } = require('../utils/telefone');
+const { formatarNome, nomeValido, MENSAGEM_NOME } = require('../utils/nome');
 
 
 
 exports.listarPessoas = async (req, res) => {
   try {
-    const result = await query('SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa FROM pessoa ORDER BY cpf_pessoa');
+    const result = await query('SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa FROM pessoa ORDER BY cpf_pessoa');
     res.json({ sucesso: true, pessoas: result.rows });
   } catch (error) {
     console.error('Erro ao listar pessoas:', error);
@@ -15,8 +16,10 @@ exports.listarPessoas = async (req, res) => {
 
 exports.criarPessoa = async (req, res) => {
   try {
-    const { cpf_pessoa, nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa } = req.body;
+    const { cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa } = req.body;
 
+    const nomeFormatado = formatarNome(nome_pessoa);
+    if (!nomeFormatado || !nomeValido(nomeFormatado)) return res.status(400).json({ sucesso: false, mensagem: MENSAGEM_NOME });
     if (!nome_pessoa || !endereco_pessoa || !telefone_pessoa || !senha_pessoa || !email_pessoa) {
       return res.status(400).json({
         sucesso: false,
@@ -25,8 +28,10 @@ exports.criarPessoa = async (req, res) => {
     }
 
     const cpfLimpo = String(cpf_pessoa || '').replace(/\D/g, '');
-    if (!cpfLimpo) {
-      return res.status(400).json({ sucesso: false, mensagem: 'O CPF é obrigatório' });
+    const cepLimpo = String(cep_pessoa || '').replace(/\D/g, '');
+    if (!/^\d{8}$/.test(cepLimpo)) return res.status(400).json({ sucesso: false, mensagem: 'Informe um CEP válido com 8 números.' });
+    if (!/^\d{11}$/.test(cpfLimpo)) {
+      return res.status(400).json({ sucesso: false, mensagem: 'O CPF deve conter exatamente 11 números.' });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,8 +53,8 @@ exports.criarPessoa = async (req, res) => {
     }
 
     const result = await query(
-      'INSERT INTO pessoa (cpf_pessoa, nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING cpf_pessoa, nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa',
-      [cpfLimpo, nome_pessoa, data_nascimento_pessoa || null, endereco_pessoa, telefone, senha_pessoa, email_pessoa]
+      'INSERT INTO pessoa (cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa',
+      [cpfLimpo, nomeFormatado, data_nascimento_pessoa || null, cepLimpo, endereco_pessoa, telefone, senha_pessoa, email_pessoa]
     );
 
     res.status(201).json({ sucesso: true, pessoa: result.rows[0] });
@@ -83,7 +88,7 @@ exports.obterPessoa = async (req, res) => {
     }
 
     const result = await query(
-      'SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa FROM pessoa WHERE cpf_pessoa = $1',
+      'SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa FROM pessoa WHERE cpf_pessoa = $1',
       [id]
     );
 
@@ -101,7 +106,11 @@ exports.obterPessoa = async (req, res) => {
 exports.atualizarPessoa = async (req, res) => {
   try {
     const id = String(req.params.id || '').trim();
-    const { nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa } = req.body;
+    const { nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa } = req.body;
+
+    if (cep_pessoa !== undefined && !/^\d{8}$/.test(String(cep_pessoa).replace(/\D/g, ''))) {
+      return res.status(400).json({ sucesso: false, mensagem: 'O CEP deve conter exatamente 8 números.' });
+    }
 
     let telefoneNovo;
     if (telefone_pessoa !== undefined) {
@@ -132,7 +141,7 @@ exports.atualizarPessoa = async (req, res) => {
     }
 
     const existingPersonResult = await query(
-      'SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa FROM pessoa WHERE cpf_pessoa = $1',
+      'SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, senha_pessoa, email_pessoa FROM pessoa WHERE cpf_pessoa = $1',
       [id]
     );
 
@@ -141,9 +150,12 @@ exports.atualizarPessoa = async (req, res) => {
     }
 
     const currentPerson = existingPersonResult.rows[0];
+    const nomeAtualizado = nome_pessoa !== undefined ? formatarNome(nome_pessoa) : currentPerson.nome_pessoa;
+    if (nome_pessoa !== undefined && !nomeValido(nomeAtualizado)) return res.status(400).json({ sucesso: false, mensagem: MENSAGEM_NOME });
     const updatedFields = {
-      nome_pessoa: nome_pessoa !== undefined ? nome_pessoa : currentPerson.nome_pessoa,
+      nome_pessoa: nomeAtualizado,
       data_nascimento_pessoa: data_nascimento_pessoa !== undefined ? (data_nascimento_pessoa || null) : currentPerson.data_nascimento_pessoa,
+      cep_pessoa: cep_pessoa !== undefined ? String(cep_pessoa).replace(/\D/g, '') : currentPerson.cep_pessoa,
       endereco_pessoa: endereco_pessoa !== undefined ? endereco_pessoa : currentPerson.endereco_pessoa,
       telefone_pessoa: telefoneNovo !== undefined ? telefoneNovo : currentPerson.telefone_pessoa,
       senha_pessoa: senha_pessoa !== undefined ? senha_pessoa : currentPerson.senha_pessoa,
@@ -151,8 +163,8 @@ exports.atualizarPessoa = async (req, res) => {
     };
 
     const updateResult = await query(
-      'UPDATE pessoa SET nome_pessoa = $1, data_nascimento_pessoa = $2, endereco_pessoa = $3, telefone_pessoa = $4, senha_pessoa = $5, email_pessoa = $6 WHERE cpf_pessoa = $7 RETURNING cpf_pessoa, nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa',
-      [updatedFields.nome_pessoa, updatedFields.data_nascimento_pessoa, updatedFields.endereco_pessoa, updatedFields.telefone_pessoa, updatedFields.senha_pessoa, updatedFields.email_pessoa, id]
+      'UPDATE pessoa SET nome_pessoa = $1, data_nascimento_pessoa = $2, cep_pessoa = $3, endereco_pessoa = $4, telefone_pessoa = $5, senha_pessoa = $6, email_pessoa = $7 WHERE cpf_pessoa = $8 RETURNING cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa',
+      [updatedFields.nome_pessoa, updatedFields.data_nascimento_pessoa, updatedFields.cep_pessoa, updatedFields.endereco_pessoa, updatedFields.telefone_pessoa, updatedFields.senha_pessoa, updatedFields.email_pessoa, id]
     );
 
     res.json({ sucesso: true, pessoa: updateResult.rows[0] });
@@ -212,7 +224,7 @@ exports.obterPessoaPorEmail = async (req, res) => {
     }
 
     const result = await query(
-      'SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa FROM pessoa WHERE email_pessoa = $1',
+      'SELECT cpf_pessoa, nome_pessoa, data_nascimento_pessoa, cep_pessoa, endereco_pessoa, telefone_pessoa, email_pessoa FROM pessoa WHERE email_pessoa = $1',
       [email_pessoa]
     );
 

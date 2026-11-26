@@ -11,6 +11,11 @@ const gradeProdutos = document.getElementById('gradeProdutos');
 const quantidadeProdutos = document.getElementById('quantidadeProdutos');
 const modalProduto = document.getElementById('modalProduto');
 const conteudoModalProduto = document.getElementById('conteudoModalProduto');
+const modalSobreLoja = document.getElementById('modalSobreLoja');
+const abrirSobreLoja = document.getElementById('abrirSobreLoja');
+abrirSobreLoja.addEventListener('click', evento => { evento.preventDefault(); modalSobreLoja.hidden = false; });
+modalSobreLoja.querySelectorAll('[data-fechar-sobre]').forEach(el => el.addEventListener('click', () => { modalSobreLoja.hidden = true; }));
+document.addEventListener('keydown', evento => { if (evento.key === 'Escape') modalSobreLoja.hidden = true; });
 
 const botaoLogin = document.getElementById('botaoLogin');
 const botaoConta = document.getElementById('botaoConta');
@@ -262,6 +267,7 @@ function renderizarProdutos() {
             <span class="informacoes-card">
                 <strong>${escaparHTML(produto.nome_produto)}</strong>
                 <span class="preco-card">${formatarPreco(produto.preco_unitario_produto)}</span>
+                <span class="avaliacao-resumo" aria-label="Avaliação média">${Number(produto.qtd_avaliacoes || 0) ? `★ ${Number(produto.media_avaliacao).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:2})} (${Number(produto.qtd_avaliacoes)} avaliações)` : 'Ainda sem avaliações'}</span>
             </span>
         </button>`;
     }).join('');
@@ -285,6 +291,18 @@ function abrirDetalhes(id) {
                 <p><strong>Unidade de medida:</strong> ${escaparHTML(obterNomeUnidade(p.id_unidade_medida))}</p>
                 <p><strong>Categoria:</strong> ${escaparHTML(obterNomeCategoria(p.id_categoria))}</p>
                 <p class="preco-detalhe">${formatarPreco(p.preco_unitario_produto)}</p>
+                <p class="avaliacao-detalhe">${Number(p.qtd_avaliacoes || 0) ? `★ ${Number(p.media_avaliacao).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:2})} de 5 (${Number(p.qtd_avaliacoes)} avaliações)` : 'Este produto ainda não recebeu avaliações.'}</p>
+                <div class="form-avaliacao">
+                    <h3>Avalie este produto</h3>
+                    ${clienteLogado() ? `
+                        <label for="notaProduto">Sua avaliação</label>
+                        <select id="notaProduto"><option value="5">★★★★★ — Excelente</option><option value="4">★★★★☆ — Muito bom</option><option value="3">★★★☆☆ — Bom</option><option value="2">★★☆☆☆ — Regular</option><option value="1">★☆☆☆☆ — Ruim</option></select>
+                        <label for="textoComentarioProduto">Seu comentário</label>
+                        <textarea id="textoComentarioProduto" maxlength="1500" rows="3" placeholder="Conte o que achou do produto..."></textarea>
+                        <button type="button" id="enviarAvaliacao">Enviar avaliação</button>
+                        <p id="mensagemAvaliacao" role="status" aria-live="polite"></p>
+                    ` : '<p><a href="../login/login.html">Entre na sua conta</a> para avaliar este produto.</p>'}
+                </div>
                 <div class="controle-quantidade">
                     <span>Quantidade</span>
                     <div class="seletor-quantidade">
@@ -304,6 +322,30 @@ function abrirDetalhes(id) {
     document.getElementById('diminuirQuantidade').addEventListener('click', () => alterarQuantidade(-1));
     document.getElementById('aumentarQuantidade').addEventListener('click', () => alterarQuantidade(1));
     document.getElementById('adicionarCarrinho').addEventListener('click', adicionarAoCarrinho);
+    const enviarAvaliacao = document.getElementById('enviarAvaliacao');
+    if (enviarAvaliacao) enviarAvaliacao.addEventListener('click', enviarComentarioProduto);
+}
+
+async function enviarComentarioProduto() {
+    const nota = document.getElementById('notaProduto');
+    const texto = document.getElementById('textoComentarioProduto');
+    const mensagem = document.getElementById('mensagemAvaliacao');
+    const botao = document.getElementById('enviarAvaliacao');
+    if (!texto.value.trim()) { mensagem.textContent = 'Escreva um comentário antes de enviar.'; return; }
+    botao.disabled = true;
+    try {
+        const resposta = await fetch(`${API}/comentario`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionStorage.getItem('token')}` },
+            body: JSON.stringify({ id_produto: produtoSelecionado.id_produto, avaliacao: Number(nota.value), texto_comentario: texto.value.trim() })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok || !dados.sucesso) throw new Error(dados.mensagem || 'Não foi possível enviar sua avaliação.');
+        mensagem.textContent = 'Avaliação enviada! Ela ficará visível para a administração da loja.';
+        texto.value = '';
+        await carregarProdutos();
+    } catch (erro) { mensagem.textContent = erro.message; }
+    finally { botao.disabled = false; }
 }
 
 function estoqueDoProduto(produto) {

@@ -40,10 +40,18 @@
                         autocomplete="bday" required>
                 </div>
 
+                <div class="campo">
+                    <label for="cep_pessoa">CEP</label>
+                    <input type="text" id="cep_pessoa" name="cep_pessoa" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" required>
+                </div>
+                <div class="campo">
+                    <label for="numero_casa">Número da residência</label>
+                    <input type="text" id="numero_casa" name="numero_casa" maxlength="10" placeholder="Nº da casa" required>
+                </div>
                 <div class="campo campo-completo">
-                    <label for="endereco_pessoa">Endereço</label>
-                    <input type="text" id="endereco_pessoa" name="endereco_pessoa" maxlength="150"
-                        placeholder="Rua, número, bairro e cidade" autocomplete="street-address" required>
+                    <label for="endereco_pessoa">Endereço localizado pelo CEP</label>
+                    <input type="text" id="endereco_pessoa" name="endereco_pessoa" maxlength="150" readonly required placeholder="O endereço será preenchido automaticamente">
+                    <small id="mensagemCep" aria-live="polite"></small>
                 </div>
 
                 <div class="campo campo-completo">

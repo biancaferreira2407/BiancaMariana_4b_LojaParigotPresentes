@@ -12,7 +12,7 @@
 <body>
     <header class="cabecalho-loja">
         <div class="linha-superior">
-            <a class="identidade-loja" href="dashboard.html" aria-label="Página inicial da Parigot Presentes">
+            <a class="identidade-loja" href="#sobreLoja" id="abrirSobreLoja" aria-label="Sobre a Parigot Presentes">
                 <img src="../../../imagens/logo-parigot.png" alt="Logo da Parigot Presentes">
                 <span>Parigot <strong>Presentes</strong></span>
             </a>
@@ -161,6 +161,20 @@
             </button>
         </section>
     </main>
+
+    <div class="modal-sobre-loja" id="modalSobreLoja" hidden>
+        <div class="fundo-modal" data-fechar-sobre></div>
+        <section class="janela-sobre-loja" role="dialog" aria-modal="true" aria-labelledby="tituloSobreLoja">
+            <button class="fechar-modal" type="button" aria-label="Fechar" data-fechar-sobre>&times;</button>
+            <img src="../../../imagens/logo-parigot.png" alt="Logo Parigot Presentes">
+            <p class="chamada-produtos">Mais que presentes, são momentos especiais!</p>
+            <h2 id="tituloSobreLoja">Sobre a Parigot Presentes</h2>
+            <p>Uma loja feita para ajudar você a encontrar presentes e transformar ocasiões especiais em boas lembranças.</p>
+            <h3>Onde estamos</h3>
+            <p><strong>Rua Eucalipto, nº 64</strong><br>Conjunto Parigot de Souza<br>Campo Mourão – PR</p>
+            <p>Venha nos visitar!</p>
+        </section>
+    </div>
 
     <div class="modal-produto" id="modalProduto" hidden>
         <div class="fundo-modal" data-fechar-modal></div>

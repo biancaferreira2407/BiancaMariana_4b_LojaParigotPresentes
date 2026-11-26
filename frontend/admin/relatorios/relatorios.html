@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <script src="../auth-admin.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico, vendas e avaliações | Parigot Presentes</title>
+    <link rel="stylesheet" href="relatorios.css">
+    <link rel="stylesheet" href="../tema-loja.css">
+</head>
+<body>
+    <main class="pagina-relatorios">
+        <header class="topo-relatorios">
+            <div><p class="sobretitulo">ADMINISTRAÇÃO</p><h1>Histórico e avaliações</h1><p>Acompanhe as movimentações, os produtos mais vendidos e as opiniões dos clientes.</p></div>
+            <a class="voltar-menu" href="../menu/menu.html">← Voltar ao Menu</a>
+        </header>
+        <nav class="abas" aria-label="Seções de relatórios">
+            <button class="aba ativa" data-alvo="historico">Histórico de movimentações</button>
+            <button class="aba" data-alvo="ranking">Produtos mais vendidos</button>
+            <button class="aba" data-alvo="comentarios">Comentários dos clientes</button>
+        </nav>
+        <section class="painel" id="painel-historico">
+            <div class="cabecalho-painel"><div><h2>Histórico de movimentações</h2><p>Data, horário, ação realizada e responsável.</p></div><button class="atualizar" data-atualizar="historico">Atualizar</button></div>
+            <div class="tabela-responsiva"><table><thead><tr><th>Data e hora</th><th>O que foi feito</th><th>Quem fez</th><th>CPF</th></tr></thead><tbody id="listaHistorico"><tr><td colspan="4">Carregando...</td></tr></tbody></table></div>
+            <p class="observacao">São registradas operações de inclusão, alteração e exclusão feitas por usuários autenticados. Dados sensíveis, como senhas, não são armazenados no histórico.</p>
+        </section>
+        <section class="painel" id="painel-ranking" hidden>
+            <div class="cabecalho-painel"><div><h2>Ranking de produtos mais vendidos</h2><p>Considera pedidos com pagamento confirmado e exclui pedidos devolvidos.</p></div><button class="atualizar" data-atualizar="ranking">Atualizar</button></div>
+            <div class="tabela-responsiva"><table><thead><tr><th>Posição</th><th>Produto</th><th>Unidades vendidas</th><th>Pedidos</th><th>Total vendido</th></tr></thead><tbody id="listaRanking"><tr><td colspan="5">Carregando...</td></tr></tbody></table></div>
+        </section>
+        <section class="painel" id="painel-comentarios" hidden>
+            <div class="cabecalho-painel"><div><h2>Comentários dos clientes</h2><p>Os textos e os autores ficam disponíveis somente nesta área administrativa.</p></div><button class="atualizar" data-atualizar="comentarios">Atualizar</button></div>
+            <div class="tabela-responsiva"><table><thead><tr><th>Data</th><th>Produto</th><th>Cliente</th><th>CPF</th><th>Avaliação</th><th>Comentário</th></tr></thead><tbody id="listaComentarios"><tr><td colspan="6">Carregando...</td></tr></tbody></table></div>
+        </section>
+        <p class="mensagem" id="mensagem" role="status" aria-live="polite"></p>
+    </main>
+    <script src="relatorios.js"></script>
+</body>
+</html>

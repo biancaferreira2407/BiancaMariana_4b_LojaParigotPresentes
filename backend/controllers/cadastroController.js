@@ -44,6 +44,7 @@ exports.cadastrarCliente = async (req, res) => {
             nome_pessoa,
             data_nascimento_pessoa,
             endereco_pessoa,
+            cep_pessoa,
             telefone_pessoa,
             email_pessoa,
             senha_pessoa
@@ -52,13 +53,14 @@ exports.cadastrarCliente = async (req, res) => {
         const cpf = String(cpf_pessoa || '').replace(/\D/g, '');
         const nome = formatarNome(nome_pessoa);
         const endereco = String(endereco_pessoa || '').trim();
+        const cep = String(cep_pessoa || '').replace(/\D/g, '');
         const telefone = normalizarTelefone(telefone_pessoa);
         const email = String(email_pessoa || '').trim().toLowerCase();
         const senha = String(senha_pessoa || '');
 
         if (
             !cpf || !nome || !data_nascimento_pessoa ||
-            !endereco || !telefone || !email || !senha
+            !endereco || !/^\d{8}$/.test(cep) || !telefone || !email || !senha
         ) {
             return res.status(400).json({
                 sucesso: false,
@@ -172,15 +174,17 @@ exports.cadastrarCliente = async (req, res) => {
                 nome_pessoa,
                 data_nascimento_pessoa,
                 endereco_pessoa,
+                cep_pessoa,
                 telefone_pessoa,
                 senha_pessoa,
                 email_pessoa
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [
                 cpf,
                 nome,
                 data_nascimento_pessoa,
                 endereco,
+                cep,
                 telefone,
                 senha,
                 email

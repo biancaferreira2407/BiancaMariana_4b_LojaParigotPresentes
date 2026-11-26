@@ -15,6 +15,11 @@ const pessoasTableBody = document.getElementById('pessoasTableBody');
 const messageContainer = document.getElementById('messageContainer');
 const inputNome = document.getElementById('nome_pessoa');
 const inputTelefone = document.getElementById('telefone_pessoa');
+const inputCep = document.getElementById('cep_pessoa');
+const inputNumeroCasa = document.getElementById('numero_casa');
+const inputEndereco = document.getElementById('endereco_pessoa');
+const mensagemCepPessoa = document.getElementById('mensagemCepPessoa');
+let dadosCepPessoa = null;
 
 // Mesma regra do backend: DDD + número (10 dígitos fixo / 11 celular começando com 9).
 function telefoneValido(valor) {
@@ -54,9 +59,32 @@ btnExcluir.addEventListener('click', excluirPessoa);
 btnCancelar.addEventListener('click', cancelarOperacao);
 btnSalvar.addEventListener('click', salvarOperacao);
 
-inputNome.addEventListener('input', function () {
-    this.value = this.value.replace(/[^A-Za-zÀ-ÿ\s]/g, '');
+function formatarNomeAdmin(valor) {
+    return String(valor || '').normalize('NFC').replace(/[^\p{L} ]/gu, '').replace(/\s+/g, ' ')
+        .toLocaleLowerCase('pt-BR').replace(/(^|\s)(\p{L})/gu, (m, espaco, letra) => espaco + letra.toLocaleUpperCase('pt-BR'));
+}
+inputNome.addEventListener('input', function () { this.value = formatarNomeAdmin(this.value); });
+inputCep.addEventListener('input', () => {
+    const cep = inputCep.value.replace(/\D/g, '').slice(0, 8);
+    inputCep.value = cep.length > 5 ? `${cep.slice(0,5)}-${cep.slice(5)}` : cep;
+    dadosCepPessoa = null; inputEndereco.value = '';
+    if (cep.length === 8) consultarCepPessoa(cep);
 });
+async function consultarCepPessoa(cep) {
+    mensagemCepPessoa.textContent = 'Consultando CEP...';
+    try {
+        const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const dados = await resposta.json();
+        if (!resposta.ok || dados.erro) throw new Error('CEP não encontrado.');
+        dadosCepPessoa = dados;
+        inputEndereco.value = [dados.logradouro, inputNumeroCasa.value.trim(), dados.bairro, `${dados.localidade}/${dados.uf}`].filter(Boolean).join(', ');
+        mensagemCepPessoa.textContent = 'Endereço encontrado.';
+    } catch (erro) { dadosCepPessoa = null; mensagemCepPessoa.textContent = erro.message; }
+}
+inputNumeroCasa.addEventListener('input', () => {
+    if (dadosCepPessoa) inputEndereco.value = [dadosCepPessoa.logradouro, inputNumeroCasa.value.trim(), dadosCepPessoa.bairro, `${dadosCepPessoa.localidade}/${dadosCepPessoa.uf}`].filter(Boolean).join(', ');
+});
+
 
 inputTelefone.addEventListener('input', function () {
     this.value = mascararTelefone(this.value);
@@ -233,6 +261,9 @@ async function preencherFormulario(pessoa) {
         document.getElementById('data_nascimento').value = '';
     }
     document.getElementById('endereco_pessoa').value = pessoa.endereco_pessoa || '';
+    inputCep.value = pessoa.cep_pessoa ? `${String(pessoa.cep_pessoa).slice(0,5)}-${String(pessoa.cep_pessoa).slice(5)}` : '';
+    inputNumeroCasa.value = (pessoa.endereco_pessoa || '').match(/,\s*(\d+[A-Za-z]?)\s*-/)?.[1] || '';
+    dadosCepPessoa = null;
     inputTelefone.value = mascararTelefone(pessoa.telefone_pessoa);
     const campoSenha = document.getElementById('senha_pessoa');
     campoSenha.value = '••••••••';
@@ -313,6 +344,7 @@ async function salvarOperacao() {
         cpf_pessoa: cpf,
         nome_pessoa: formData.get('nome_pessoa'),
         data_nascimento_pessoa: converterDataParaISO(formData.get('data_nascimento')) || null,
+        cep_pessoa: String(formData.get('cep_pessoa') || '').replace(/\D/g, ''),
         endereco_pessoa: formData.get('endereco_pessoa'),
         telefone_pessoa: String(formData.get('telefone_pessoa') || '').replace(/\D/g, ''),
         ...(operacao === 'incluir'
@@ -321,6 +353,10 @@ async function salvarOperacao() {
         email_pessoa: formData.get('email_pessoa')
     };
 
+    if (operacao === 'incluir' && (!/^\d{8}$/.test(pessoa.cep_pessoa) || !inputNumeroCasa.value.trim() || !pessoa.endereco_pessoa)) {
+        mostrarMensagem('Informe um CEP válido e o número da residência.', 'warning'); inputCep.focus(); return;
+    }
+    pessoa.nome_pessoa = formatarNomeAdmin(pessoa.nome_pessoa);
     if (cpf.length !== 11) {
         mostrarMensagem('O CPF deve ter exatamente 11 dígitos.', 'warning');
         return;
@@ -541,6 +577,7 @@ function renderizarTabelaPessoas(pessoas) {
                 </button>
             </td>
             <td>${escapeHtml(pessoa.nome_pessoa)}</td>
+            <td>${escapeHtml(pessoa.cep_pessoa || '')}</td>
             <td>${formatarData(pessoa.data_nascimento_pessoa)}</td>
             <td>${escapeHtml(pessoa.endereco_pessoa)}</td>
             <td>${escapeHtml(mascararTelefone(pessoa.telefone_pessoa) || '-')}</td>

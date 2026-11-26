@@ -1009,3 +1009,20 @@ body.modal-aberto {
     color: var(--rosa-escuro);
     font-weight: 600;
 }
+
+
+/* Janela de apresentação da loja */
+.modal-sobre-loja { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 20px; }
+.modal-sobre-loja[hidden] { display: none; }
+.modal-sobre-loja .fundo-modal { position: absolute; inset: 0; background: rgba(20, 15, 30, .68); }
+.janela-sobre-loja { position: relative; z-index: 1; width: min(100%, 520px); max-height: 90vh; overflow: auto; padding: 34px; border-radius: 18px; background: #fff; color: #30243a; text-align: center; box-shadow: 0 18px 60px rgba(0,0,0,.25); }
+.janela-sobre-loja > img { width: 92px; height: 92px; object-fit: contain; }
+.janela-sobre-loja h2 { margin: 8px 0 14px; }
+.janela-sobre-loja h3 { margin: 22px 0 8px; }
+.janela-sobre-loja p { line-height: 1.65; }
+
+/* Resumo público das avaliações; os textos dos comentários não são exibidos na vitrine. */
+.avaliacao-resumo{display:block;margin-top:5px;color:#8a6330;font-size:.82rem;font-weight:600}
+.avaliacao-detalhe{color:#8a6330;font-weight:700;margin:10px 0}
+.form-avaliacao{display:grid;gap:8px;margin:16px 0;padding:15px;border:1px solid #eadfe1;border-radius:10px;background:#fffaf9}
+.form-avaliacao h3{margin:0 0 4px}.form-avaliacao label{font-weight:700;font-size:.9rem}.form-avaliacao select,.form-avaliacao textarea{width:100%;padding:10px;border:1px solid #d8c9cd;border-radius:7px;font:inherit}.form-avaliacao button{border:0;border-radius:7px;padding:11px;background:#8d5265;color:#fff;font-weight:700;cursor:pointer}.form-avaliacao button:disabled{opacity:.6;cursor:wait}.form-avaliacao p{margin:3px 0;color:#6b4c55;font-size:.9rem}

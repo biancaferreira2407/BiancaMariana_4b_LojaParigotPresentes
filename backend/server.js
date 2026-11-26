@@ -20,12 +20,16 @@ const cadastroRoutes = require('./routes/cadastroRoutes');
 const recuperacaoSenhaRoutes = require('./routes/recuperacaoSenhaRoutes');
 const notificacaoRoutes = require('./routes/notificacaoRoutes');
 const notificacaoController = require('./controllers/notificacaoController');
+const registrarMovimentacao = require('./middlewares/registrarMovimentacao');
+const relatorioRoutes = require('./routes/relatorioRoutes');
+const comentarioRoutes = require('./routes/comentarioRoutes');
 
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(registrarMovimentacao);
 
 // Servir imagens estáticas
 app.use('/imagens', express.static(path.join(__dirname, '../imagens')));
@@ -62,6 +66,8 @@ app.use('/forma_pagamento', formaPagamentoRoutes);
 app.use('/pedido', pedidoRoutes);
 
 app.use('/notificacao', notificacaoRoutes);
+app.use('/relatorios', relatorioRoutes);
+app.use('/comentario', comentarioRoutes);
 
 app.use('/devolucao', devolucaoRoutes);
 
@@ -77,8 +83,20 @@ app.listen(PORT, async () => {
         console.log(`✅ Banco de Dados  ${process.env.DB_NAME} conectado com sucesso!`);
         try {
             await notificacaoController.garantirTabela();
+            await query(`CREATE TABLE IF NOT EXISTS public.historico_movimentacao (id_historico BIGSERIAL PRIMARY KEY, cpf_pessoa VARCHAR(20), descricao VARCHAR(500) NOT NULL, metodo VARCHAR(10) NOT NULL, rota VARCHAR(250) NOT NULL, data_hora TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+            await query(`CREATE INDEX IF NOT EXISTS idx_historico_data_hora ON public.historico_movimentacao (data_hora DESC)`);
+            await query(`CREATE TABLE IF NOT EXISTS public.comentarios (
+                id_comentario BIGSERIAL PRIMARY KEY,
+                cpf_comentador VARCHAR(20) NOT NULL REFERENCES public.pessoa(cpf_pessoa) ON DELETE CASCADE,
+                id_produto INTEGER NOT NULL REFERENCES public.produto(id_produto) ON DELETE CASCADE,
+                avaliacao SMALLINT NOT NULL CHECK (avaliacao BETWEEN 1 AND 5),
+                texto_comentario TEXT NOT NULL CHECK (length(trim(texto_comentario)) BETWEEN 1 AND 1500),
+                data_comentario TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT uq_comentario_cliente_produto UNIQUE (cpf_comentador, id_produto)
+            )`);
+            await query(`CREATE INDEX IF NOT EXISTS idx_comentarios_produto ON public.comentarios (id_produto)`);
         } catch (erroTabela) {
-            console.error(`⚠️  Não foi possível preparar a tabela de notificações: ${erroTabela.message}`);
+            console.error(`⚠️  Não foi possível preparar as tabelas de histórico/comentários: ${erroTabela.message}`);
         }
     } catch (error) {
         console.error(`❌ FALHA NA CONEXÃO COM O BANCO DE DADOS:`);

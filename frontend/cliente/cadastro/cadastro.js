@@ -3,6 +3,31 @@ const mensagemCadastro = document.getElementById('mensagemCadastro');
 const botaoCadastrar = document.getElementById('botaoCadastrar');
 const campoCpf = document.getElementById('cpf_pessoa');
 const campoDataNascimento = document.getElementById('data_nascimento_pessoa');
+const campoCep = document.getElementById('cep_pessoa');
+const campoNumeroCasa = document.getElementById('numero_casa');
+const campoEndereco = document.getElementById('endereco_pessoa');
+const mensagemCep = document.getElementById('mensagemCep');
+let enderecoViaCep = null;
+
+campoCep.addEventListener('input', () => {
+    const digitos = campoCep.value.replace(/\D/g, '').slice(0, 8);
+    campoCep.value = digitos.length > 5 ? `${digitos.slice(0, 5)}-${digitos.slice(5)}` : digitos;
+    enderecoViaCep = null; campoEndereco.value = '';
+    if (digitos.length === 8) consultarCep(digitos);
+});
+
+async function consultarCep(cep) {
+    mensagemCep.textContent = 'Consultando CEP...';
+    try {
+        const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const dados = await resposta.json();
+        if (!resposta.ok || dados.erro) throw new Error('CEP não encontrado.');
+        enderecoViaCep = dados;
+        campoEndereco.value = [dados.logradouro, dados.bairro, dados.localidade, dados.uf].filter(Boolean).join(', ');
+        mensagemCep.textContent = 'Endereço encontrado. Informe apenas o número da residência.';
+    } catch (erro) { enderecoViaCep = null; campoEndereco.value = ''; mensagemCep.textContent = erro.message || 'Não foi possível consultar o CEP.'; }
+}
+
 
 // Mesma regra do backend: só letras (com acentos) e espaços; cada palavra começa com letra maiúscula.
 function formatarNome(valor) {
@@ -147,11 +172,17 @@ formCadastro.addEventListener('submit', async evento => {
         return;
     }
 
+    if (!/^\d{8}$/.test(campoCep.value.replace(/\D/g, '')) || !enderecoViaCep || !campoNumeroCasa.value.trim()) {
+        mensagemCadastro.textContent = 'Informe um CEP válido e o número da residência.'; campoCep.focus(); return;
+    }
+
     const dadosCadastro = {
         cpf_pessoa: cpf,
         nome_pessoa: nome,
         data_nascimento_pessoa: campoDataNascimento.value,
-        endereco_pessoa: document.getElementById('endereco_pessoa').value.trim(),
+        cep_pessoa: campoCep.value.replace(/\D/g, ''),
+        numero_casa: campoNumeroCasa.value.trim(),
+        endereco_pessoa: `${enderecoViaCep.logradouro || 'Logradouro não informado'}, ${campoNumeroCasa.value.trim()} - ${enderecoViaCep.bairro || ''}, ${enderecoViaCep.localidade}/${enderecoViaCep.uf}`,
         telefone_pessoa: document.getElementById('telefone_pessoa').value.replace(/\D/g, ''),
         email_pessoa: document.getElementById('email_pessoa').value.trim(),
         senha_pessoa: senha

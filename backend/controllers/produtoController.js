@@ -6,7 +6,7 @@ const sharp = require('sharp');
 // Listar todos os produtos
 exports.listarProdutos = async (req, res) => {
     try {
-        const result = await query('SELECT * FROM public.produto ORDER BY id_produto');
+        const result = await query(`SELECT pr.*, COALESCE(ROUND(AVG(c.avaliacao)::numeric, 2), 0) AS media_avaliacao, COUNT(c.id_comentario)::integer AS qtd_avaliacoes FROM public.produto pr LEFT JOIN public.comentarios c ON c.id_produto = pr.id_produto GROUP BY pr.id_produto ORDER BY pr.id_produto`);
         res.json({ sucesso: true, produtos: result.rows });
     } catch (error) {
         console.error('Erro ao listar produtos:', error);
